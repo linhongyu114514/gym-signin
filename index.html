@@ -25,7 +25,7 @@
       <span id="toggle-icon" class="material-icons text-lg text-cyan-500">timeline</span> 
       <span id="toggle-text">時間軸</span>
     </button>
-    <span class="text-xs text-cyan-400 font-medium border border-cyan-900/50 bg-cyan-900/20 px-2.5 py-1 rounded-full shadow-inner">Gym Mate v2.2</span>
+    <span class="text-xs text-cyan-400 font-medium border border-cyan-900/50 bg-cyan-900/20 px-2.5 py-1 rounded-full shadow-inner">運動科學實驗室簽到系統</span>
   </div>
 
   <div id="page-main" class="w-full max-w-sm bg-gray-900 border border-gray-800 p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] relative mt-4">
@@ -119,7 +119,7 @@
     
     <div class="flex justify-between items-center mb-4">
       <h2 class="text-sm font-bold text-cyan-400 flex items-center shrink-0 bg-gray-800/50 border border-gray-700 px-3 py-1.5 rounded-lg shadow-inner gap-1.5">
-        <span class="material-icons text-cyan-500 text-sm">insert_chart_outlined</span> 今日看板
+        <span class="material-icons text-cyan-500 text-sm">insert_chart_outlined</span> 借用紀錄
       </h2>
       <input type="date" id="report-date" class="bg-gray-950 text-gray-200 p-1.5 rounded-xl border border-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 shrink-0 w-[125px] text-center shadow-inner cursor-pointer">
     </div>
@@ -151,8 +151,8 @@
     </div>
     
     <div class="text-center text-xs text-gray-500 mt-4 flex flex-col items-center justify-center gap-1.5">
-      <span class="flex items-center gap-1.5 bg-gray-800/40 px-3 py-1 rounded-full"><span class="material-icons text-sm text-cyan-500">touch_app</span> 點擊圖表可查看詳細資訊</span>
-      <span class="flex items-center gap-1.5 bg-gray-800/40 px-3 py-1 rounded-full mt-0.5"><span class="material-icons text-sm text-cyan-500">swipe_up</span> 您可上下滑動檢視人員名單</span>
+      <span class="flex items-center gap-1.5 bg-gray-800/40 px-3 py-1 rounded-full"><span class="material-icons text-sm text-cyan-500">touch_app</span> 點擊長條圖色塊可查看詳細資訊</span>
+      <span class="flex items-center gap-1.5 bg-gray-800/40 px-3 py-1 rounded-full mt-0.5"><span class="material-icons text-sm text-cyan-500">swipe_up</span> 可上下滑動圖表檢視借用人員名單</span>
     </div>
   </div>
 
@@ -240,7 +240,7 @@
         pageTimeline.classList.add('hidden');
         pageMain.classList.remove('hidden');
         toggleIcon.innerText = 'timeline';
-        toggleText.innerText = '時間軸';
+        toggleText.innerText = '使用人員紀錄';
       }
     }
 
@@ -335,7 +335,7 @@
             bubble.innerText = "簽退";
             
             var select = document.getElementById('select-next-user');
-            select.innerHTML = '<option value="">-- 請選擇接替的現場人員 --</option>'; 
+            select.innerHTML = '<option value="">-- 請選擇續借的現場人員 --</option>'; 
             if (resList.users && resList.users.length > 0) {
               resList.users.forEach(function(username) {
                 var opt = document.createElement('option');
@@ -392,7 +392,7 @@
       .then(res => res.json())
       .then(() => {
         localStorage.setItem('gym_status', 'checked_out');
-        showSuccess("👋 簽退成功！");
+        showSuccess("👋 簽退成功！掰噗！👋");
         setTimeout(() => {
           hideLoading();
           document.getElementById('step-device').classList.add('hidden');
@@ -509,9 +509,9 @@
               let msg = `【${record.y}】\n簽到時間：${record.startLabel}\n簽退時間：${record.endLabel}\n使用時間：${Math.floor(duration/60)} 小時 ${duration%60} 分鐘`;
               
               if (record.isForcedCheckout) {
-                msg += `\n\n⚠️ 可能忘記簽退，系統強制簽退`;
+                msg += `\n\n⚠️ 可能忘記簽退，系統強制簽退，請管理人員確認CCTV`;
               } else if (duration > 120) {
-                msg += `\n\n⚠️ 可能超時，請確認是否有共同使用者續借`;
+                msg += `\n\n⚠️ 可能超時，請管理人員確認Google月曆是否有共同使用者續借`;
               }
               alert(msg);
             }
