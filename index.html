@@ -468,12 +468,16 @@
           },
           scales: {
             x: {
-              // 💡 修改點 3：X軸起點設定在 300 (早上5點)，這樣6點簽到的人會有足夠空間畫標籤，避開名字
               min: 300, 
-              max: 1440,
+              max: 1500, // 💡 延後至 1500 (隔天 01:00) 讓 24:00 不會被邊界吃掉
               ticks: { 
                 stepSize: 60, 
-                callback: value => ("0" + Math.floor(value / 60)).slice(-2) + ":00", 
+                // 💡 智慧標籤轉換：把 1440 之後的分鐘轉換回合理的 24 或 01 點
+                callback: value => {
+                  let h = Math.floor(value / 60);
+                  let displayHour = h > 24 ? h - 24 : h; // 若為 25 則轉為 1
+                  return ("0" + displayHour).slice(-2) + ":00";
+                }, 
                 color: '#9CA3AF', 
                 font: { size: 10 },
                 maxRotation: 0, 
@@ -487,7 +491,6 @@
         }
       });
       
-      // 初始化時確保卷軸在最左邊
       chartScrollArea.scrollLeft = 0;
     }
 
