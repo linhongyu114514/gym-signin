@@ -11,113 +11,118 @@
     /* 隱藏滾動條但保留上下滾動功能 */
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    /* 確保所有輸入框在深色模式下正常顯示日曆圖示 */
+    input[type="date"] {
+      color-scheme: dark;
+    }
   </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col items-center p-4 landscape:p-2">
+<body class="bg-black text-white min-h-screen flex flex-col items-center p-4 landscape:p-2">
 
   <div id="nav-bar" class="hidden w-full max-w-sm landscape:max-w-3xl md:max-w-xl flex justify-between items-center mb-4 px-2 transition-all duration-300">
-    <button id="btn-toggle-view" onclick="toggleView()" class="flex items-center gap-1 bg-white px-4 py-2 rounded-full shadow text-blue-600 font-bold text-sm transition active:scale-95">
+    <button id="btn-toggle-view" onclick="toggleView()" class="flex items-center gap-1 bg-black px-4 py-2 rounded-full border border-white text-white font-bold text-sm transition hover:bg-white hover:text-black active:scale-95">
       <span id="toggle-icon" class="material-icons text-lg">timeline</span> 
       <span id="toggle-text">時間軸</span>
     </button>
-    <span class="text-xs text-gray-400 font-medium">Gym Mate v2.2</span>
+    <span class="text-xs text-white font-medium border border-white px-2 py-1 rounded">Gym Mate v2.2</span>
   </div>
 
-  <div id="page-main" class="w-full max-w-sm bg-white p-6 rounded-3xl shadow-xl relative mt-4">
+  <div id="page-main" class="w-full max-w-sm bg-black border border-white p-6 rounded-3xl shadow-xl relative mt-4">
     
     <div id="step-bind" class="hidden">
-      <h1 class="text-2xl font-bold text-center text-blue-600 mb-2">🔗 帳號綁定</h1>
-      <p class="text-gray-500 mb-6 text-center text-sm">初次使用，請綁定您的 Google 帳號與姓名</p>
+      <h1 class="text-2xl font-bold text-center text-white mb-2 border border-white p-2 rounded-lg shadow-[0_0_10px_rgba(255,255,255,0.2)]">🔗 帳號綁定</h1>
+      <p class="text-white mb-6 text-center text-sm border border-white p-2 rounded-lg">初次使用，請綁定您的 Google 帳號與姓名</p>
       <div class="space-y-4">
         <div>
-          <label class="block text-gray-700 text-sm font-bold mb-1">Google 帳號 (Email)</label>
-          <input type="email" id="input-email" class="w-full p-3 border rounded-xl" placeholder="example@gmail.com">
+          <label class="block text-white text-sm font-bold mb-1">Google 帳號 (Email)</label>
+          <input type="email" id="input-email" class="w-full p-3 bg-black text-white border border-white rounded-xl placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-white" placeholder="example@gmail.com">
         </div>
         <div>
-          <label class="block text-gray-700 text-sm font-bold mb-1">真實姓名</label>
-          <input type="text" id="input-name" class="w-full p-3 border rounded-xl" placeholder="請輸入姓名">
+          <label class="block text-white text-sm font-bold mb-1">真實姓名</label>
+          <input type="text" id="input-name" class="w-full p-3 bg-black text-white border border-white rounded-xl placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-white" placeholder="請輸入姓名">
         </div>
-        <button onclick="bindAccount()" class="w-full bg-blue-500 text-white p-3 rounded-xl font-bold text-lg hover:bg-blue-600 transition">完成綁定</button>
+        <button onclick="bindAccount()" class="w-full bg-black text-white border border-white p-3 rounded-xl font-bold text-lg hover:bg-white hover:text-black transition">完成綁定</button>
       </div>
     </div>
 
     <div id="step-main" class="hidden flex flex-col items-center">
-      <p class="text-lg text-gray-600 mb-6">哈囉，<span id="display-name" class="font-bold text-blue-500"></span></p>
+      <p class="text-lg text-white mb-6 border border-white px-4 py-2 rounded-lg">哈囉，<span id="display-name" class="font-bold"></span></p>
       
-      <button id="btn-bubble" onclick="handleBubbleClick()" class="w-48 h-48 rounded-full shadow-lg text-white font-bold text-3xl flex items-center justify-center transition-all transform active:scale-95 duration-200">
+      <button id="btn-bubble" onclick="handleBubbleClick()" class="w-48 h-48 rounded-full border-2 border-white text-white font-bold text-3xl flex items-center justify-center transition-all transform active:scale-95 duration-200">
       </button>
 
-      <div id="role-selector" class="mt-8 bg-gray-50 p-2 rounded-xl flex gap-2 w-full justify-center">
-        <label class="flex-1 text-center py-2 rounded-lg cursor-pointer transition-colors text-sm" id="label-role-main">
+      <div id="role-selector" class="mt-8 bg-black border border-white p-2 rounded-xl flex gap-2 w-full justify-center">
+        <label class="flex-1 text-center py-2 rounded-lg cursor-pointer transition-colors text-sm border border-white bg-black text-white" id="label-role-main">
           <input type="radio" name="role" value="主要借用者" id="radio-main" class="mr-1"> 主要借用者
         </label>
-        <label class="flex-1 text-center py-2 rounded-lg cursor-pointer transition-colors text-sm bg-white shadow-sm border text-blue-600 font-bold" id="label-role-sub">
+        <label class="flex-1 text-center py-2 rounded-lg cursor-pointer transition-colors text-sm border border-white bg-white text-black font-bold" id="label-role-sub">
           <input type="radio" name="role" value="共同使用者" id="radio-sub" class="mr-1" checked> 共同使用者
         </label>
       </div>
     </div>
 
     <div id="step-device" class="hidden">
-      <h2 class="text-xl font-bold text-red-500 mb-4 text-center">⚠️ 簽退前確認</h2>
-      <p class="text-gray-600 mb-4 text-center text-sm">您是主要借用者，請選擇您的操作：</p>
+      <h2 class="text-xl font-bold text-white mb-4 text-center border border-white p-2 rounded-lg">⚠️ 簽退前確認</h2>
+      <p class="text-white mb-4 text-center text-sm border border-white p-2 rounded-lg">您是主要借用者，請選擇您的操作：</p>
       
-      <div class="bg-orange-50 border border-orange-200 p-4 rounded-xl mb-4">
-        <label class="block text-orange-700 text-sm font-bold mb-2">🔄 責任交接（指定目前在場人員）：</label>
-        <select id="select-next-user" class="w-full p-2 border rounded-lg bg-white mb-3 text-gray-700">
+      <div class="bg-black border border-white p-4 rounded-xl mb-4">
+        <label class="block text-white text-sm font-bold mb-2">🔄 責任交接（指定目前在場人員）：</label>
+        <select id="select-next-user" class="w-full p-2 bg-black text-white border border-white rounded-lg mb-3">
           <option value="">-- 請選擇接替的現場人員 --</option>
         </select>
-        <button onclick="submitSignOut('轉移')" class="w-full bg-orange-500 text-white p-2 rounded-xl font-bold text-sm hover:bg-orange-600 transition">
-          確認將主要借用者資格轉移離開
+        <button onclick="submitSignOut('轉移')" class="w-full bg-black text-white border border-white p-2 rounded-xl font-bold text-sm hover:bg-white hover:text-black transition">
+          確認將資格轉移離開
         </button>
       </div>
 
       <div class="relative flex py-2 items-center">
-        <div class="flex-grow border-t border-gray-300"></div>
-        <span class="flex-shrink-0 mx-4 text-gray-400 text-xs font-bold">或由您親自關閉</span>
-        <div class="flex-grow border-t border-gray-300"></div>
+        <div class="flex-grow border-t border-white"></div>
+        <span class="flex-shrink-0 mx-4 text-white text-xs font-bold border border-white px-2 py-1 rounded">或由您親自關閉</span>
+        <div class="flex-grow border-t border-white"></div>
       </div>
 
-      <div class="space-y-3 my-4 bg-gray-50 border p-4 rounded-xl text-left">
-        <label class="flex items-center space-x-3 text-gray-700 p-1 cursor-pointer">
-          <input type="checkbox" id="chk-ac" class="w-5 h-5 rounded text-blue-500">
-          <span>❄️ 冷氣 <b class="text-red-500">已關閉</b></span>
+      <div class="space-y-3 my-4 bg-black border border-white p-4 rounded-xl text-left">
+        <label class="flex items-center space-x-3 text-white p-1 cursor-pointer">
+          <input type="checkbox" id="chk-ac" class="w-5 h-5 rounded border border-white bg-black accent-white">
+          <span class="border-b border-dashed border-gray-500 pb-0.5">❄️ 冷氣 <b class="font-normal text-gray-300">已關閉</b></span>
         </label>
-        <label class="flex items-center space-x-3 text-gray-700 p-1 cursor-pointer">
-          <input type="checkbox" id="chk-light" class="w-5 h-5 rounded text-blue-500">
-          <span>💡 電燈 <b class="text-red-500">已關閉</b></span>
+        <label class="flex items-center space-x-3 text-white p-1 cursor-pointer">
+          <input type="checkbox" id="chk-light" class="w-5 h-5 rounded border border-white bg-black accent-white">
+          <span class="border-b border-dashed border-gray-500 pb-0.5">💡 電燈 <b class="font-normal text-gray-300">已關閉</b></span>
         </label>
-        <label class="flex items-center space-x-3 text-gray-700 p-1 cursor-pointer">
-          <input type="checkbox" id="chk-dehumidifier" class="w-5 h-5 rounded text-blue-500">
-          <span>💧 除濕機 <b class="text-green-600">已開啟</b></span>
+        <label class="flex items-center space-x-3 text-white p-1 cursor-pointer">
+          <input type="checkbox" id="chk-dehumidifier" class="w-5 h-5 rounded border border-white bg-black accent-white">
+          <span class="border-b border-dashed border-gray-500 pb-0.5">💧 除濕機 <b class="font-normal text-gray-300">已開啟</b></span>
         </label>
       </div>
-      <button onclick="submitSignOut('關閉設備')" class="w-full bg-red-500 text-white p-3 rounded-xl font-bold hover:bg-red-600 transition">親自確認簽退並離開</button>
+      <button onclick="submitSignOut('關閉設備')" class="w-full bg-black text-white border border-white p-3 rounded-xl font-bold hover:bg-white hover:text-black transition">親自確認簽退並離開</button>
     </div>
 
-    <div id="msg" class="mt-4 text-center font-bold text-sm text-gray-500"></div>
+    <div id="msg" class="hidden mt-4 text-center font-bold text-sm text-white border border-white p-2 rounded-lg"></div>
   </div>
 
-  <div id="page-timeline" class="hidden w-full max-w-sm landscape:max-w-3xl md:max-w-xl bg-white p-4 rounded-3xl shadow-xl mt-4 transition-all duration-300">
+  <div id="page-timeline" class="hidden w-full max-w-sm landscape:max-w-3xl md:max-w-xl bg-black p-4 rounded-3xl border border-white mt-4 transition-all duration-300">
     
     <div class="flex justify-between items-center mb-3">
-      <h2 class="text-sm font-bold text-gray-700 flex items-center shrink-0">📊 今日看板</h2>
-      <input type="date" id="report-date" class="bg-gray-100 text-gray-700 p-1.5 rounded-xl border text-xs focus:outline-none focus:border-blue-500 shrink-0 w-[110px]">
+      <h2 class="text-sm font-bold text-white flex items-center shrink-0 border border-white px-2 py-1.5 rounded-lg">📊 今日看板</h2>
+      <input type="date" id="report-date" class="bg-black text-white p-1.5 rounded-xl border border-white text-xs focus:outline-none focus:ring-1 focus:ring-white shrink-0 w-[120px]">
     </div>
     
     <div class="flex justify-center mb-4 w-full">
-      <div class="flex items-center justify-center bg-gray-100 rounded-lg shadow-inner shrink-0">
-        <button onclick="changeDate(-1)" class="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-blue-500 transition active:scale-90">
+      <div class="flex items-center justify-center bg-black border border-white rounded-lg shrink-0">
+        <button onclick="changeDate(-1)" class="w-8 h-8 flex items-center justify-center text-white hover:bg-white hover:text-black transition active:scale-90 border-r border-white">
           <span class="material-icons text-base">chevron_left</span>
         </button>
-        <span id="display-current-date" class="px-2 text-sm font-bold text-gray-700 min-w-[95px] text-center tracking-wider whitespace-nowrap"></span>
-        <button onclick="changeDate(1)" class="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-blue-500 transition active:scale-90">
+        <span id="display-current-date" class="px-2 text-sm font-bold text-white min-w-[95px] text-center tracking-wider whitespace-nowrap"></span>
+        <button onclick="changeDate(1)" class="w-8 h-8 flex items-center justify-center text-white hover:bg-white hover:text-black transition active:scale-90 border-l border-white">
           <span class="material-icons text-base">chevron_right</span>
         </button>
       </div>
     </div>
 
-    <div class="relative rounded-2xl border border-gray-800 bg-gray-900 shadow-inner">
-      <div id="no-data" class="hidden absolute inset-0 flex items-center justify-center text-gray-400 text-sm font-bold bg-gray-900/95 rounded-2xl z-10 pointer-events-none">
+    <div class="relative rounded-2xl border border-white bg-black">
+      <div id="no-data" class="hidden absolute inset-0 flex items-center justify-center text-white text-sm font-bold bg-black/95 rounded-2xl z-10 pointer-events-none border border-white">
         📭 該日期沒有任何進出紀錄
       </div>
       <div id="chart-scroll-area" class="h-[400px] landscape:h-[260px] w-full overflow-y-auto overflow-x-hidden rounded-2xl hide-scrollbar scroll-smooth relative touch-pan-y">
@@ -127,9 +132,9 @@
       </div>
     </div>
     
-    <div class="text-center text-xs text-gray-400 mt-3 flex flex-col items-center justify-center gap-1">
-      <span class="flex items-center gap-1"><span class="material-icons text-sm">touch_app</span> 點擊長條圖可查看詳細資訊</span>
-      <span class="flex items-center gap-1 mt-1"><span class="material-icons text-sm">swipe_up</span> 提示：您可上下滑動檢視人員</span>
+    <div class="text-center text-xs text-white mt-3 flex flex-col items-center justify-center gap-2">
+      <span class="flex items-center gap-1 border border-white px-2 py-1 rounded"><span class="material-icons text-sm">touch_app</span> 點擊長條圖可查看詳細資訊</span>
+      <span class="flex items-center gap-1 border border-white px-2 py-1 rounded"><span class="material-icons text-sm">swipe_up</span> 提示：您可上下滑動檢視人員</span>
     </div>
   </div>
 
@@ -147,11 +152,11 @@
         var labelMain = document.getElementById('label-role-main');
         var labelSub = document.getElementById('label-role-sub');
         if (e.target.value === '主要借用者') {
-          labelMain.className = "flex-1 text-center py-2 rounded-lg cursor-pointer bg-white shadow-sm border text-blue-600 font-bold text-sm";
-          labelSub.className = "flex-1 text-center py-2 rounded-lg cursor-pointer text-gray-400 text-sm";
+          labelMain.className = "flex-1 text-center py-2 rounded-lg cursor-pointer bg-white text-black font-bold text-sm border border-white";
+          labelSub.className = "flex-1 text-center py-2 rounded-lg cursor-pointer bg-black text-white text-sm border border-white";
         } else {
-          labelSub.className = "flex-1 text-center py-2 rounded-lg cursor-pointer bg-white shadow-sm border text-blue-600 font-bold text-sm";
-          labelMain.className = "flex-1 text-center py-2 rounded-lg cursor-pointer text-gray-400 text-sm";
+          labelSub.className = "flex-1 text-center py-2 rounded-lg cursor-pointer bg-white text-black font-bold text-sm border border-white";
+          labelMain.className = "flex-1 text-center py-2 rounded-lg cursor-pointer bg-black text-white text-sm border border-white";
         }
       }
     });
@@ -244,14 +249,15 @@
       var bubble = document.getElementById('btn-bubble');
       var roleSelector = document.getElementById('role-selector');
 
+      // 💡 調整：按鈕也加入邊框風格
       if (status === 'checked_out') {
         bubble.innerText = "簽到";
-        bubble.className = "w-48 h-48 rounded-full shadow-lg text-white font-bold text-4xl flex items-center justify-center transition-all transform active:scale-95 duration-200 bg-gradient-to-br from-green-400 to-green-600 shadow-green-500/50";
+        bubble.className = "w-48 h-48 rounded-full border-2 border-white bg-black shadow-[0_0_20px_rgba(255,255,255,0.4)] text-white font-bold text-4xl flex items-center justify-center transition-all transform hover:bg-gray-900 active:scale-95 duration-200";
         roleSelector.style.opacity = "1";
         roleSelector.style.pointerEvents = "auto";
       } else {
         bubble.innerText = "簽退";
-        bubble.className = "w-48 h-48 rounded-full shadow-lg text-white font-bold text-4xl flex items-center justify-center transition-all transform active:scale-95 duration-200 bg-gradient-to-br from-red-400 to-red-600 shadow-red-500/50";
+        bubble.className = "w-48 h-48 rounded-full border-2 border-white bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.8)] font-bold text-4xl flex items-center justify-center transition-all transform active:scale-95 duration-200";
         roleSelector.style.opacity = "0.5";
         roleSelector.style.pointerEvents = "none";
       }
@@ -302,7 +308,7 @@
         localStorage.setItem('gym_current_role', latestRole); 
         
         if (latestRole === '主要借用者') {
-          showLoading("正在撈取現場其他人員名單...");
+          showLoading("正在撈取名單...");
           fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: "取得在場名單", excludeName: name }) })
           .then(res => res.json())
           .then(resList => {
@@ -362,7 +368,7 @@
         payload.dehumidifierCheck = "已開啟";
       }
 
-      showLoading("正在記錄狀態....");
+      showLoading("記錄中...");
       fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) })
       .then(res => res.json())
       .then(() => {
@@ -407,6 +413,7 @@
       const ctx = document.getElementById('timeChart').getContext('2d');
       const noDataHint = document.getElementById('no-data');
       const chartContainer = document.getElementById('chart-container');
+      const chartScrollArea = document.getElementById('chart-scroll-area');
 
       noDataHint.classList.add('hidden');
 
@@ -415,30 +422,35 @@
         return;
       }
 
-      // 計算圖表高度，讓 Y 軸可滾動
-      const chartScrollArea = document.getElementById('chart-scroll-area');
       const requiredHeight = Math.max(names.length * 50 + 60, chartScrollArea.clientHeight);
       chartContainer.style.height = requiredHeight + 'px';
 
       const chartData = [];
-      const bgColors = []; // 💡 新增：裝載顏色陣列
+      const bgColors = [];
 
       names.forEach(name => {
         data[name].forEach(record => {
           const duration = record.end - record.start;
+          
+          // 💡 關鍵 1：判斷是否為午夜未簽退 (時間等於 1440 也就是 24:00)
+          const isForcedCheckout = (record.end >= 1440);
+
           chartData.push({
             y: name,
             x: [record.start, record.end],
             startLabel: record.startLabel,
             endLabel: record.endLabel,
-            duration: duration // 將時長存起來備用
+            duration: duration,
+            isForcedCheckout: isForcedCheckout // 記錄供點擊使用
           });
           
-          // 💡 調整：在製圖迴圈中，大於 120 分鐘就直接塗成紅色
-          if (duration > 120) {
-            bgColors.push('rgba(239, 68, 68, 0.85)'); // 紅色
+          // 💡 關鍵 2：著色邏輯 (強制簽退黃色優先 -> 超時紅色 -> 正常深藍/白)
+          if (isForcedCheckout) {
+            bgColors.push('rgba(234, 179, 8, 0.9)'); // 黃色
+          } else if (duration > 120) {
+            bgColors.push('rgba(239, 68, 68, 0.9)'); // 紅色
           } else {
-            bgColors.push('rgba(59, 130, 246, 0.85)'); // 預設藍色
+            bgColors.push('rgba(59, 130, 246, 0.9)'); // 預設藍色 (搭配深色背景較亮眼)
           }
         });
       });
@@ -448,9 +460,9 @@
         data: {
           datasets: [{
             data: chartData,
-            backgroundColor: bgColors, // 💡 使用動態產生的顏色陣列
-            borderColor: '#3b82f6', // 外框可以統一，也可以跟著變
-            borderWidth: 0,
+            backgroundColor: bgColors,
+            borderColor: '#FFFFFF', // 💡 長條圖加上白色細線外框
+            borderWidth: 1,
             borderRadius: 6,
             borderSkipped: false,
             barPercentage: 0.6
@@ -468,7 +480,10 @@
               
               let msg = `【${record.y}】\n簽到時間：${record.startLabel}\n簽退時間：${record.endLabel}\n使用時間：${Math.floor(duration/60)} 小時 ${duration%60} 分鐘`;
               
-              if (duration > 120) {
+              // 💡 點擊事件依照狀態跳出對應警示
+              if (record.isForcedCheckout) {
+                msg += `\n\n⚠️ 可能忘記簽退，系統強制簽退`;
+              } else if (duration > 120) {
                 msg += `\n\n⚠️ 可能超時，請確認是否有共同使用者續借`;
               }
               alert(msg);
@@ -488,15 +503,18 @@
                   let displayHour = h > 24 ? h - 24 : h;
                   return ("0" + displayHour).slice(-2) + ":00";
                 }, 
-                color: '#9CA3AF', 
-                font: { size: 9 }, // 微調字體大小，幫助橫向完整塞下 24 個區間
-                autoSkip: false,   // 💡 強制不跳過刻度，保證 00:00~24:00 都顯示
-                maxRotation: 45,   // 若直立手機寬度不夠，允許稍微旋轉
+                color: '#FFFFFF', // 💡 X軸文字改為白色
+                font: { size: 9 }, 
+                autoSkip: false,   
+                maxRotation: 45,   
                 minRotation: 0
               },
-              grid: { color: '#374151' }
+              grid: { color: 'rgba(255, 255, 255, 0.2)' } // 💡 X軸輔助線改為透明白
             },
-            y: { ticks: { color: '#F3F4F6', font: { size: 13, weight: 'bold' } }, grid: { display: false } }
+            y: { 
+              ticks: { color: '#FFFFFF', font: { size: 13, weight: 'bold' } }, // 💡 Y軸文字改為白色
+              grid: { display: false } 
+            }
           },
           plugins: { legend: { display: false }, tooltip: { enabled: false } }
         }
@@ -505,12 +523,18 @@
 
     function showLoading(txt) {
       document.getElementById('msg').innerText = txt;
-      document.getElementById('msg').className = "mt-4 text-center font-bold text-sm text-amber-500";
+      // 💡 加上 hidden 控制與邊框樣式
+      document.getElementById('msg').className = "mt-4 text-center font-bold text-sm text-white border border-white p-2 rounded-lg";
+      document.getElementById('msg').classList.remove('hidden');
     }
-    function hideLoading() { document.getElementById('msg').innerText = ""; }
+    function hideLoading() { 
+      document.getElementById('msg').innerText = ""; 
+      document.getElementById('msg').classList.add('hidden');
+    }
     function showSuccess(txt) {
       document.getElementById('msg').innerText = txt;
-      document.getElementById('msg').className = "mt-4 text-center font-bold text-md text-green-600";
+      document.getElementById('msg').className = "mt-4 text-center font-bold text-md text-white border border-white p-2 rounded-lg bg-green-900";
+      document.getElementById('msg').classList.remove('hidden');
     }
   </script>
 </body>
