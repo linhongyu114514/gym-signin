@@ -94,7 +94,7 @@
 
   <div id="page-timeline" class="hidden w-full max-w-sm landscape:max-w-3xl md:max-w-xl bg-white p-4 rounded-3xl shadow-xl mt-4 transition-all duration-300">
     <div class="flex justify-between items-center mb-4 gap-2">
-      <h2 class="text-sm font-bold text-gray-700 flex items-center gap-1">📊 今日實驗室動態看板</h2>
+      <h2 class="text-sm font-bold text-gray-700 flex items-center gap-1">📊 今日動態看板</h2>
       <input type="date" id="report-date" class="bg-gray-100 text-gray-700 p-1 rounded-xl border text-xs focus:outline-none focus:border-blue-500">
     </div>
 
@@ -382,6 +382,9 @@
       const ctx = document.getElementById('timeChart').getContext('2d');
       const noDataHint = document.getElementById('no-data');
 
+      // 💡 關鍵修正點：只要進入繪製流程，不管有沒有資料，都先確保提示是隱藏的
+      noDataHint.classList.add('hidden');
+
       if (names.length === 0) {
         noDataHint.classList.remove('hidden');
         return;
@@ -423,7 +426,7 @@
             x: {
               min: 360, max: 1440,
               ticks: { 
-                stepSize: 60, 
+                stepSize: 60, // 維持 1 小時一格的設定
                 callback: value => ("0" + Math.floor(value / 60)).slice(-2) + ":00", 
                 color: '#9CA3AF', 
                 font: { size: 9 },
