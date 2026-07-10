@@ -49,6 +49,7 @@
     <div id="step-main" class="hidden flex flex-col items-center">
       <p class="text-lg text-white mb-6 border border-white px-4 py-2 rounded-lg">哈囉，<span id="display-name" class="font-bold"></span></p>
       
+      <!-- 主要按鈕區：將由 JS 動態填入顏色 -->
       <button id="btn-bubble" onclick="handleBubbleClick()" class="w-48 h-48 rounded-full border-2 border-white text-white font-bold text-3xl flex items-center justify-center transition-all transform active:scale-95 duration-200">
       </button>
 
@@ -249,15 +250,15 @@
       var bubble = document.getElementById('btn-bubble');
       var roleSelector = document.getElementById('role-selector');
 
-      // 💡 調整：按鈕也加入邊框風格
+      // 💡 恢復原有的漸層色彩設計，搭配白色細框
       if (status === 'checked_out') {
         bubble.innerText = "簽到";
-        bubble.className = "w-48 h-48 rounded-full border-2 border-white bg-black shadow-[0_0_20px_rgba(255,255,255,0.4)] text-white font-bold text-4xl flex items-center justify-center transition-all transform hover:bg-gray-900 active:scale-95 duration-200";
+        bubble.className = "w-48 h-48 rounded-full border-2 border-white text-white font-bold text-4xl flex items-center justify-center transition-all transform active:scale-95 duration-200 bg-gradient-to-br from-green-400 to-green-600 shadow-green-500/50 shadow-[0_0_15px_rgba(74,222,128,0.5)]";
         roleSelector.style.opacity = "1";
         roleSelector.style.pointerEvents = "auto";
       } else {
         bubble.innerText = "簽退";
-        bubble.className = "w-48 h-48 rounded-full border-2 border-white bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.8)] font-bold text-4xl flex items-center justify-center transition-all transform active:scale-95 duration-200";
+        bubble.className = "w-48 h-48 rounded-full border-2 border-white text-white font-bold text-4xl flex items-center justify-center transition-all transform active:scale-95 duration-200 bg-gradient-to-br from-red-400 to-red-600 shadow-red-500/50 shadow-[0_0_15px_rgba(248,113,113,0.5)]";
         roleSelector.style.opacity = "0.5";
         roleSelector.style.pointerEvents = "none";
       }
@@ -432,7 +433,6 @@
         data[name].forEach(record => {
           const duration = record.end - record.start;
           
-          // 💡 關鍵 1：判斷是否為午夜未簽退 (時間等於 1440 也就是 24:00)
           const isForcedCheckout = (record.end >= 1440);
 
           chartData.push({
@@ -441,16 +441,15 @@
             startLabel: record.startLabel,
             endLabel: record.endLabel,
             duration: duration,
-            isForcedCheckout: isForcedCheckout // 記錄供點擊使用
+            isForcedCheckout: isForcedCheckout 
           });
           
-          // 💡 關鍵 2：著色邏輯 (強制簽退黃色優先 -> 超時紅色 -> 正常深藍/白)
           if (isForcedCheckout) {
-            bgColors.push('rgba(234, 179, 8, 0.9)'); // 黃色
+            bgColors.push('rgba(234, 179, 8, 0.9)'); 
           } else if (duration > 120) {
-            bgColors.push('rgba(239, 68, 68, 0.9)'); // 紅色
+            bgColors.push('rgba(239, 68, 68, 0.9)'); 
           } else {
-            bgColors.push('rgba(59, 130, 246, 0.9)'); // 預設藍色 (搭配深色背景較亮眼)
+            bgColors.push('rgba(59, 130, 246, 0.9)'); 
           }
         });
       });
@@ -461,7 +460,7 @@
           datasets: [{
             data: chartData,
             backgroundColor: bgColors,
-            borderColor: '#FFFFFF', // 💡 長條圖加上白色細線外框
+            borderColor: '#FFFFFF', 
             borderWidth: 1,
             borderRadius: 6,
             borderSkipped: false,
@@ -480,7 +479,6 @@
               
               let msg = `【${record.y}】\n簽到時間：${record.startLabel}\n簽退時間：${record.endLabel}\n使用時間：${Math.floor(duration/60)} 小時 ${duration%60} 分鐘`;
               
-              // 💡 點擊事件依照狀態跳出對應警示
               if (record.isForcedCheckout) {
                 msg += `\n\n⚠️ 可能忘記簽退，系統強制簽退`;
               } else if (duration > 120) {
@@ -503,16 +501,16 @@
                   let displayHour = h > 24 ? h - 24 : h;
                   return ("0" + displayHour).slice(-2) + ":00";
                 }, 
-                color: '#FFFFFF', // 💡 X軸文字改為白色
+                color: '#FFFFFF', 
                 font: { size: 9 }, 
                 autoSkip: false,   
                 maxRotation: 45,   
                 minRotation: 0
               },
-              grid: { color: 'rgba(255, 255, 255, 0.2)' } // 💡 X軸輔助線改為透明白
+              grid: { color: 'rgba(255, 255, 255, 0.2)' } 
             },
             y: { 
-              ticks: { color: '#FFFFFF', font: { size: 13, weight: 'bold' } }, // 💡 Y軸文字改為白色
+              ticks: { color: '#FFFFFF', font: { size: 13, weight: 'bold' } }, 
               grid: { display: false } 
             }
           },
@@ -523,7 +521,6 @@
 
     function showLoading(txt) {
       document.getElementById('msg').innerText = txt;
-      // 💡 加上 hidden 控制與邊框樣式
       document.getElementById('msg').className = "mt-4 text-center font-bold text-sm text-white border border-white p-2 rounded-lg";
       document.getElementById('msg').classList.remove('hidden');
     }
