@@ -18,7 +18,6 @@
     }
   </style>
 </head>
-<!-- 💡 以深灰藍 (gray-950) 為底，捨棄死黑 -->
 <body class="bg-gray-950 text-gray-200 min-h-screen flex flex-col items-center p-4 landscape:p-2 selection:bg-cyan-500/30">
 
   <div id="nav-bar" class="hidden w-full max-w-sm landscape:max-w-3xl md:max-w-xl flex justify-between items-center mb-4 px-2 transition-all duration-300">
@@ -164,9 +163,10 @@
 
     let myChart = null;
     let currentView = 'main';
-    let currentFetchDate = ""; 
+    
+    // 💡 終極防呆機制：使用 Token 號碼牌來確保只接受最新一次的操作結果
+    let currentFetchToken = 0; 
 
-    // 💡 角色切換器的精緻高亮邏輯
     document.addEventListener('change', function(e) {
       if (e.target && e.target.name === 'role') {
         var labelMain = document.getElementById('label-role-main');
@@ -269,7 +269,6 @@
       var bubble = document.getElementById('btn-bubble');
       var roleSelector = document.getElementById('role-selector');
 
-      // 💡 大按鈕改用高質感的漸層與光暈
       if (status === 'checked_out') {
         bubble.innerText = "簽到";
         bubble.className = "w-52 h-52 rounded-full text-white font-black text-5xl flex items-center justify-center transition-all transform active:scale-95 duration-200 bg-gradient-to-br from-emerald-400 to-emerald-700 shadow-[0_0_40px_rgba(16,185,129,0.3)] border-[6px] border-gray-900 hover:shadow-[0_0_50px_rgba(16,185,129,0.5)] cursor-pointer";
@@ -408,10 +407,16 @@
 
     function fetchAndRenderChart(dateStr) {
       const noDataHint = document.getElementById('no-data');
-      if (myChart) { myChart.destroy(); }
+      
+      // 💡 確保完全清除上一個圖表實體，避免視覺殘留
+      if (myChart) { 
+        myChart.destroy(); 
+        myChart = null;
+      }
       noDataHint.classList.add('hidden');
       
-      currentFetchDate = dateStr; 
+      // 💡 每次請求發出時，號碼牌加 1
+      const fetchToken = ++currentFetchToken;
 
       fetch(GAS_URL, {
         method: "POST",
@@ -419,11 +424,16 @@
       })
       .then(res => res.json())
       .then(data => {
-        if (currentFetchDate !== dateStr) return; 
+        // 💡 收到資料後，檢查自己是不是擁有「最新」號碼牌的請求
+        // 如果不是，代表使用者已經按到別天了，直接結束函數不做任何畫面更新！
+        if (currentFetchToken !== fetchToken) return; 
+        
         renderChart(data);
       })
       .catch(err => {
-        if (currentFetchDate !== dateStr) return; 
+        // 💡 錯誤處理也必須遵守號碼牌規則，避免把新的圖表蓋掉
+        if (currentFetchToken !== fetchToken) return; 
+        
         noDataHint.classList.remove('hidden');
       });
     }
@@ -450,24 +460,25 @@
 
       names.forEach(name => {
         data[name].forEach(record => {
-          const duration = record.end - record.start;
-          const isForcedCheckout = (record.end >= 1440);
+          const isForcedCheckout = (record.end >= 1439);
+          const finalEndValue = isForcedCheckout ? 1440 : record.end;
+          const duration = finalEndValue - record.start;
 
           chartData.push({
             y: name,
-            x: [record.start, record.end],
+            x: [record.start, finalEndValue],
             startLabel: record.startLabel,
-            endLabel: record.endLabel,
+            endLabel: isForcedCheckout ? "24:00" : record.endLabel,
             duration: duration,
             isForcedCheckout: isForcedCheckout 
           });
           
           if (isForcedCheckout) {
-            bgColors.push('rgba(234, 179, 8, 0.9)'); // 黃色
+            bgColors.push('rgba(234, 179, 8, 0.9)'); 
           } else if (duration > 120) {
-            bgColors.push('rgba(239, 68, 68, 0.9)'); // 紅色
+            bgColors.push('rgba(239, 68, 68, 0.9)'); 
           } else {
-            bgColors.push('rgba(6, 182, 212, 0.85)'); // 青藍色 (Cyan) 非常適合深色模式
+            bgColors.push('rgba(6, 182, 212, 0.85)'); 
           }
         });
       });
@@ -478,11 +489,11 @@
           datasets: [{
             data: chartData,
             backgroundColor: bgColors,
-            borderColor: '#111827', // 💡 改用深灰色邊框讓長條圖更有內嵌質感
+            borderColor: '#111827', 
             borderWidth: 2,
             borderRadius: 6,
             borderSkipped: false,
-            barPercentage: 0.65 // 稍微加粗一點點看起來更大氣
+            barPercentage: 0.65 
           }]
         },
         options: {
@@ -519,16 +530,16 @@
                   let displayHour = h > 24 ? h - 24 : h;
                   return ("0" + displayHour).slice(-2) + ":00";
                 }, 
-                color: '#9CA3AF', // X軸文字用柔和的灰
+                color: '#9CA3AF', 
                 font: { size: 9 }, 
                 autoSkip: false,   
                 maxRotation: 45,   
                 minRotation: 0
               },
-              grid: { color: 'rgba(255, 255, 255, 0.05)' } // 極淡的透明白線
+              grid: { color: 'rgba(255, 255, 255, 0.05)' } 
             },
             y: { 
-              ticks: { color: '#E5E7EB', font: { size: 13, weight: 'bold' } }, // Y軸名字亮一點
+              ticks: { color: '#E5E7EB', font: { size: 13, weight: 'bold' } }, 
               grid: { display: false } 
             }
           },
