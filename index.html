@@ -139,6 +139,7 @@
 
     let myChart = null;
     let currentView = 'main';
+    let currentFetchDate = ""; // 💡 新增：用來記錄最後一次發送請求的日期
 
     const customLabelsPlugin = {
       id: 'customLabels',
@@ -403,6 +404,8 @@
       const noDataHint = document.getElementById('no-data');
       if (myChart) { myChart.destroy(); }
       noDataHint.classList.add('hidden');
+      
+      currentFetchDate = dateStr; // 💡 關鍵 1：記錄這次要求的日期是什麼
 
       fetch(GAS_URL, {
         method: "POST",
@@ -410,9 +413,13 @@
       })
       .then(res => res.json())
       .then(data => {
+        // 💡 關鍵 2：收到資料時，核對這包資料的日期還是不是最新選擇的日期
+        if (currentFetchDate !== dateStr) return; // 不是最新日期，就直接丟棄！
+        
         renderChart(data);
       })
       .catch(err => {
+        if (currentFetchDate !== dateStr) return; // 錯誤處理一樣要檢查
         noDataHint.classList.remove('hidden');
       });
     }
@@ -469,13 +476,12 @@
           scales: {
             x: {
               min: 300, 
-              max: 1500, // 💡 延後至 1500 (隔天 01:00) 讓 24:00 不會被邊界吃掉
+              max: 1500,
               ticks: { 
                 stepSize: 60, 
-                // 💡 智慧標籤轉換：把 1440 之後的分鐘轉換回合理的 24 或 01 點
                 callback: value => {
                   let h = Math.floor(value / 60);
-                  let displayHour = h > 24 ? h - 24 : h; // 若為 25 則轉為 1
+                  let displayHour = h > 24 ? h - 24 : h;
                   return ("0" + displayHour).slice(-2) + ":00";
                 }, 
                 color: '#9CA3AF', 
