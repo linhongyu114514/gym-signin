@@ -93,9 +93,21 @@
   </div>
 
   <div id="page-timeline" class="hidden w-full max-w-sm landscape:max-w-3xl md:max-w-xl bg-white p-4 rounded-3xl shadow-xl mt-4 transition-all duration-300">
-    <div class="flex justify-between items-center mb-4 gap-2">
-      <h2 class="text-sm font-bold text-gray-700 flex items-center gap-1">📊 今日動態看板</h2>
-      <input type="date" id="report-date" class="bg-gray-100 text-gray-700 p-1 rounded-xl border text-xs focus:outline-none focus:border-blue-500">
+    
+    <div class="flex justify-between items-center mb-4 gap-1">
+      <h2 class="text-sm font-bold text-gray-700 flex items-center shrink-0">📊 看板</h2>
+      
+      <div class="flex items-center justify-center bg-gray-100 rounded-lg shadow-inner">
+        <button onclick="changeDate(-1)" class="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-blue-500 transition active:scale-90">
+          <span class="material-icons text-base">chevron_left</span>
+        </button>
+        <span id="display-current-date" class="px-2 text-xs font-bold text-gray-700 w-[78px] text-center tracking-wider"></span>
+        <button onclick="changeDate(1)" class="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-blue-500 transition active:scale-90">
+          <span class="material-icons text-base">chevron_right</span>
+        </button>
+      </div>
+
+      <input type="date" id="report-date" class="bg-gray-100 text-gray-700 p-1 rounded-xl border text-xs focus:outline-none focus:border-blue-500 shrink-0 w-[110px]">
     </div>
 
     <div class="relative bg-gray-900 p-2 rounded-2xl border border-gray-800 h-[400px] landscape:h-[250px]">
@@ -159,8 +171,16 @@
       
       const today = new Date();
       const todayStr = today.getFullYear() + "-" + ("0" + (today.getMonth() + 1)).slice(-2) + "-" + ("0" + today.getDate()).slice(-2);
+      
+      // 💡 初始化同步設定
       document.getElementById('report-date').value = todayStr;
-      document.getElementById('report-date').addEventListener('change', function(e) { fetchAndRenderChart(e.target.value); });
+      document.getElementById('display-current-date').innerText = todayStr;
+      
+      // 💡 當使用者點選日曆選日期時，文字也必須同步更新
+      document.getElementById('report-date').addEventListener('change', function(e) { 
+        document.getElementById('display-current-date').innerText = e.target.value;
+        fetchAndRenderChart(e.target.value); 
+      });
 
       if (!savedEmail || !savedName) {
         document.getElementById('step-bind').classList.remove('hidden');
@@ -169,6 +189,28 @@
         showMainPage(savedName);
       }
     };
+
+    // 💡 修改點 2：新增快速切換日期函式
+    function changeDate(offset) {
+      const dateInput = document.getElementById('report-date');
+      if (!dateInput.value) return;
+      
+      // 拆解字串以避免時區影響計算
+      const parts = dateInput.value.split('-');
+      let currentDate = new Date(parts[0], parts[1] - 1, parts[2]);
+      currentDate.setDate(currentDate.getDate() + offset);
+      
+      const newDateStr = currentDate.getFullYear() + "-" + 
+                         ("0" + (currentDate.getMonth() + 1)).slice(-2) + "-" + 
+                         ("0" + currentDate.getDate()).slice(-2);
+                         
+      // 同步更新日曆值與畫面文字
+      dateInput.value = newDateStr;
+      document.getElementById('display-current-date').innerText = newDateStr;
+      
+      // 觸發圖表更新
+      fetchAndRenderChart(newDateStr);
+    }
 
     window.addEventListener('resize', function() {
       if (currentView === 'timeline' && myChart) {
@@ -362,6 +404,8 @@
     function fetchAndRenderChart(dateStr) {
       const noDataHint = document.getElementById('no-data');
       if (myChart) { myChart.destroy(); }
+      
+      // 確保每次畫圖前先隱藏「無資料提示」
       noDataHint.classList.add('hidden');
 
       fetch(GAS_URL, {
@@ -381,9 +425,6 @@
       const names = Object.keys(data);
       const ctx = document.getElementById('timeChart').getContext('2d');
       const noDataHint = document.getElementById('no-data');
-
-      // 💡 關鍵修正點：只要進入繪製流程，不管有沒有資料，都先確保提示是隱藏的
-      noDataHint.classList.add('hidden');
 
       if (names.length === 0) {
         noDataHint.classList.remove('hidden');
@@ -426,7 +467,7 @@
             x: {
               min: 360, max: 1440,
               ticks: { 
-                stepSize: 60, // 維持 1 小時一格的設定
+                stepSize: 60, 
                 callback: value => ("0" + Math.floor(value / 60)).slice(-2) + ":00", 
                 color: '#9CA3AF', 
                 font: { size: 9 },
