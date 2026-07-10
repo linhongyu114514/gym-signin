@@ -25,7 +25,7 @@
       <span id="toggle-icon" class="material-icons text-lg text-cyan-500">timeline</span> 
       <span id="toggle-text">借用人員記錄</span>
     </button>
-    <span class="text-xs text-cyan-400 font-medium border border-cyan-900/50 bg-cyan-900/20 px-2.5 py-1 rounded-full shadow-inner">運科二簽到系統</span>
+    <span class="text-xs text-cyan-400 font-medium border border-cyan-900/50 bg-cyan-900/20 px-2.5 py-1 rounded-full shadow-inner">Gym Mate v2.2</span>
   </div>
 
   <div id="page-main" class="w-full max-w-sm bg-gray-900 border border-gray-800 p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] relative mt-4">
@@ -55,10 +55,10 @@
       </button>
 
       <div id="role-selector" class="mt-8 bg-gray-950 border border-gray-800 p-1.5 rounded-xl flex gap-1 w-full justify-center shadow-inner">
-        <label class="flex-1 text-center py-2.5 rounded-lg cursor-pointer transition-all text-sm font-medium" id="label-role-main">
+        <label class="flex-1 text-center py-2.5 rounded-lg cursor-pointer bg-transparent text-gray-500 hover:text-gray-300 font-medium text-sm transition-all" id="label-role-main">
           <input type="radio" name="role" value="主要借用者" id="radio-main" class="hidden"> 主要借用者
         </label>
-        <label class="flex-1 text-center py-2.5 rounded-lg cursor-pointer transition-all text-sm font-medium" id="label-role-sub">
+        <label class="flex-1 text-center py-2.5 rounded-lg cursor-pointer bg-cyan-600/90 text-white font-bold text-sm shadow-[0_0_10px_rgba(6,182,212,0.5)] transition-all" id="label-role-sub">
           <input type="radio" name="role" value="共同使用者" id="radio-sub" class="hidden" checked> 共同使用者
         </label>
       </div>
@@ -179,8 +179,6 @@
     let currentView = 'main';
     let currentFetchToken = 0; 
 
-    // 💡 修改點 2：實作自訂彈窗開關控制邏輯
-     ChilModal = document.getElementById('custom-modal');
     function showModal(htmlContent, theme = 'cyan') {
       const modal = document.getElementById('custom-modal');
       const icon = document.getElementById('modal-icon');
@@ -200,6 +198,7 @@
       
       modal.classList.remove('hidden');
     }
+    
     function closeModal() {
       document.getElementById('custom-modal').classList.add('hidden');
     }
@@ -526,7 +525,6 @@
           indexAxis: 'y',
           responsive: true,
           maintainAspectRatio: false,
-          // 💡 修改點 3：將原本的原生 alert(msg) 替換成優雅的 showModal(html, theme)
           onClick: (e, activeElements, chart) => {
             if (activeElements.length > 0) {
               const index = activeElements[0].index;
@@ -543,10 +541,10 @@
               let theme = 'cyan';
               if (record.isForcedCheckout) {
                 theme = 'yellow';
-                htmlContent += `<div class="text-amber-400 mt-2 font-bold flex items-center gap-1"><span class="material-icons text-sm">error</span> 可能忘記簽退，已由系統強制簽退，請管理人員確認CCTV</div>`;
+                htmlContent += `<div class="text-amber-400 mt-2 font-bold flex items-center gap-1"><span class="material-icons text-sm">error</span> 狀況：忘記簽退，已由系統強制簽退，請管理人員確認CCTV</div>`;
               } else if (duration > 120) {
                 theme = 'red';
-                htmlContent += `<div class="text-rose-400 mt-2 font-bold flex items-center gap-1"><span class="material-icons text-sm">report_problem</span> 可能超時，請管理人員確認Google月曆是否確實有人續借</div>`;
+                htmlContent += `<div class="text-rose-400 mt-2 font-bold flex items-center gap-1"><span class="material-icons text-sm">report_problem</span> 狀況：單純續借、或超時、或忘記簽退，請管理人員確認Google月曆及CCTV</div>`;
               }
               
               showModal(htmlContent, theme);
