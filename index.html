@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <style>
-    /* 隱藏滾動條但保留滾動功能 (讓畫面更乾淨) */
+    /* 隱藏滾動條但保留滾動功能 */
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
@@ -99,35 +99,32 @@
 
   <div id="page-timeline" class="hidden w-full max-w-sm landscape:max-w-3xl md:max-w-xl bg-white p-4 rounded-3xl shadow-xl mt-4 transition-all duration-300">
     
-    <div class="flex flex-wrap justify-between items-center mb-4 gap-3">
-      <h2 class="text-sm font-bold text-gray-700 flex items-center shrink-0">📊 看板</h2>
-      
-      <div class="flex items-center justify-end grow gap-2">
-        <div class="flex items-center justify-center bg-gray-100 rounded-lg shadow-inner shrink-0">
-          <button onclick="changeDate(-1)" class="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-blue-500 transition active:scale-90">
-            <span class="material-icons text-base">chevron_left</span>
-          </button>
-          <span id="display-current-date" class="px-1 text-xs font-bold text-gray-700 min-w-[90px] text-center tracking-wider whitespace-nowrap"></span>
-          <button onclick="changeDate(1)" class="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-blue-500 transition active:scale-90">
-            <span class="material-icons text-base">chevron_right</span>
-          </button>
-        </div>
-        <input type="date" id="report-date" class="bg-gray-100 text-gray-700 p-1.5 rounded-xl border text-xs focus:outline-none focus:border-blue-500 shrink-0 w-[110px]">
+    <div class="flex justify-between items-center mb-3">
+      <h2 class="text-sm font-bold text-gray-700 flex items-center shrink-0">📊 今日看板</h2>
+      <input type="date" id="report-date" class="bg-gray-100 text-gray-700 p-1.5 rounded-xl border text-xs focus:outline-none focus:border-blue-500 shrink-0 w-[110px]">
+    </div>
+    
+    <div class="flex justify-center mb-4 w-full">
+      <div class="flex items-center justify-center bg-gray-100 rounded-lg shadow-inner shrink-0">
+        <button onclick="changeDate(-1)" class="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-blue-500 transition active:scale-90">
+          <span class="material-icons text-base">chevron_left</span>
+        </button>
+        <span id="display-current-date" class="px-2 text-sm font-bold text-gray-700 min-w-[95px] text-center tracking-wider whitespace-nowrap"></span>
+        <button onclick="changeDate(1)" class="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-blue-500 transition active:scale-90">
+          <span class="material-icons text-base">chevron_right</span>
+        </button>
       </div>
     </div>
 
     <div class="relative rounded-2xl border border-gray-800 bg-gray-900 shadow-inner">
-      
       <div id="no-data" class="hidden absolute inset-0 flex items-center justify-center text-gray-400 text-sm font-bold bg-gray-900/95 rounded-2xl z-10 pointer-events-none">
         📭 該日期沒有任何進出紀錄
       </div>
-
       <div id="chart-scroll-area" class="h-[400px] landscape:h-[260px] w-full overflow-auto rounded-2xl hide-scrollbar scroll-smooth relative touch-pan-x touch-pan-y">
         <div id="chart-container" class="relative" style="min-width: 900px; height: 100%;">
           <canvas id="timeChart"></canvas>
         </div>
       </div>
-
     </div>
     
     <div class="landscape:hidden text-center text-xs text-gray-400 mt-3 flex items-center justify-center gap-1">
@@ -427,7 +424,6 @@
       const chartContainer = document.getElementById('chart-container');
       const chartScrollArea = document.getElementById('chart-scroll-area');
 
-      // 只要進入畫圖環節，必定先隱藏無資料提示
       noDataHint.classList.add('hidden');
 
       if (names.length === 0) {
@@ -435,8 +431,6 @@
         return;
       }
 
-      // 💡 關鍵：動態根據人數計算圖表高度（每人 50px + 上下預留 60px 空間）
-      // 確保高度最少有原本 scroll 區塊那麼高，不會縮成一團
       const requiredHeight = Math.max(names.length * 50 + 60, chartScrollArea.clientHeight);
       chartContainer.style.height = requiredHeight + 'px';
 
@@ -474,13 +468,15 @@
           },
           scales: {
             x: {
-              min: 360, max: 1440,
+              // 💡 修改點 3：X軸起點設定在 300 (早上5點)，這樣6點簽到的人會有足夠空間畫標籤，避開名字
+              min: 300, 
+              max: 1440,
               ticks: { 
                 stepSize: 60, 
                 callback: value => ("0" + Math.floor(value / 60)).slice(-2) + ":00", 
                 color: '#9CA3AF', 
                 font: { size: 10 },
-                maxRotation: 0, // 強制不旋轉字體，保持乾淨
+                maxRotation: 0, 
                 minRotation: 0
               },
               grid: { color: '#374151' }
@@ -491,7 +487,7 @@
         }
       });
       
-      // 圖表畫完後，將捲軸自動移到最左側開始處
+      // 初始化時確保卷軸在最左邊
       chartScrollArea.scrollLeft = 0;
     }
 
