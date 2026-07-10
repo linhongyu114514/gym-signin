@@ -8,9 +8,9 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col items-center p-4">
+<body class="bg-gray-100 min-h-screen flex flex-col items-center p-4 landscape:p-2">
 
-  <div id="nav-bar" class="hidden w-full max-w-sm flex justify-between items-center mb-4 px-2">
+  <div id="nav-bar" class="hidden w-full max-w-sm landscape:max-w-3xl md:max-w-xl flex justify-between items-center mb-4 px-2 transition-all duration-300">
     <button id="btn-toggle-view" onclick="toggleView()" class="flex items-center gap-1 bg-white px-4 py-2 rounded-full shadow text-blue-600 font-bold text-sm transition active:scale-95">
       <span id="toggle-icon" class="material-icons text-lg">timeline</span> 
       <span id="toggle-text">時間軸</span>
@@ -92,46 +92,45 @@
     <div id="msg" class="mt-4 text-center font-bold text-sm text-gray-500"></div>
   </div>
 
-  <div id="page-timeline" class="hidden w-full max-w-sm bg-white p-4 rounded-3xl shadow-xl mt-4">
+  <div id="page-timeline" class="hidden w-full max-w-sm landscape:max-w-3xl md:max-w-xl bg-white p-4 rounded-3xl shadow-xl mt-4 transition-all duration-300">
     <div class="flex justify-between items-center mb-4 gap-2">
-      <h2 class="text-sm font-bold text-gray-700 flex items-center gap-1">📊 今日健身房動態看板</h2>
+      <h2 class="text-sm font-bold text-gray-700 flex items-center gap-1">📊 今日實驗室動態看板</h2>
       <input type="date" id="report-date" class="bg-gray-100 text-gray-700 p-1 rounded-xl border text-xs focus:outline-none focus:border-blue-500">
     </div>
 
-    <div class="relative bg-gray-900 p-2 rounded-2xl border border-gray-800 h-[450px]">
+    <div class="relative bg-gray-900 p-2 rounded-2xl border border-gray-800 h-[400px] landscape:h-[250px]">
       <canvas id="timeChart"></canvas>
       <div id="no-data" class="hidden absolute inset-0 flex items-center justify-center text-gray-500 text-sm font-bold bg-gray-900/90 rounded-2xl">
         📭 該日期沒有任何進出紀錄
       </div>
     </div>
+    
+    <div class="landscape:hidden text-center text-xs text-gray-400 mt-2 flex items-center justify-center gap-1">
+      <span class="material-icons text-sm">screen_rotation</span> 建議將手機「轉為橫螢幕」閱讀更舒適
+    </div>
   </div>
 
   <script>
     // =================【請貼上你的 GAS Web App URL】=================
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbz5N0iuhQZSvxARW8tv8sPHmlGhy4PiC3KSJe73ahtR04aBhdHYMTz9BhbFeRQrPC-6/exec";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwTG5zmyBM1Zsiy78YnxXEATjApqRs-Z4xyZHJ4w58LHHRjGAC4dwyP5PAtGb1b-CgSBg/exec";
     // ===========================================================================
 
     let myChart = null;
     let currentView = 'main';
 
-    // 💡 終極排版優化：將時間標籤外推至長條兩側，小於一小時絕不重疊
     const customLabelsPlugin = {
       id: 'customLabels',
       afterDatasetsDraw(chart) {
         const { ctx, data } = chart;
         ctx.save();
-        ctx.font = 'bold 11px sans-serif'; 
+        ctx.font = 'bold 10px sans-serif'; 
         ctx.fillStyle = '#9CA3AF'; 
-        ctx.textBaseline = 'middle'; // 與長條圖垂直置中對齊
+        ctx.textBaseline = 'middle';
 
         chart.getDatasetMeta(0).data.forEach((bar, index) => {
           const record = data.datasets[0].data[index];
-          
-          // 🟩 簽到時間：推到長條左側外面 (base - 6)，文字靠右對齊
           ctx.textAlign = 'right';
           ctx.fillText(record.startLabel, bar.base - 6, bar.y);
-          
-          // 🟥 簽退時間：推到長條右側外面 (x + 6)，文字靠左對齊
           ctx.textAlign = 'left';
           ctx.fillText(record.endLabel, bar.x + 6, bar.y);
         });
@@ -140,7 +139,6 @@
     };
     Chart.register(customLabelsPlugin);
 
-    // 點擊切換身分即時美化監聽器
     document.addEventListener('change', function(e) {
       if (e.target && e.target.name === 'role') {
         var labelMain = document.getElementById('label-role-main');
@@ -171,6 +169,12 @@
         showMainPage(savedName);
       }
     };
+
+    window.addEventListener('resize', function() {
+      if (currentView === 'timeline' && myChart) {
+        myChart.resize();
+      }
+    });
 
     function toggleView() {
       const pageMain = document.getElementById('page-main');
@@ -405,7 +409,7 @@
             borderWidth: 1,
             borderRadius: 6,
             borderSkipped: false,
-            barPercentage: 0.5
+            barPercentage: 0.6
           }]
         },
         options: {
@@ -413,13 +417,19 @@
           responsive: true,
           maintainAspectRatio: false,
           layout: { 
-            // 💡 左右側留白 45px，預留空間給推出去的時間標籤，避免邊緣文字被切掉
-            padding: { left: 45, right: 45, top: 15, bottom: 10 } 
+            padding: { left: 40, right: 40, top: 10, bottom: 10 } 
           },
           scales: {
             x: {
               min: 360, max: 1440,
-              ticks: { stepSize: 120, callback: value => ("0" + Math.floor(value / 60)).slice(-2) + ":00", color: '#9CA3AF', font: { size: 10 } },
+              ticks: { 
+                stepSize: 60, 
+                callback: value => ("0" + Math.floor(value / 60)).slice(-2) + ":00", 
+                color: '#9CA3AF', 
+                font: { size: 9 },
+                maxRotation: 45, 
+                minRotation: 0
+              },
               grid: { color: '#374151' }
             },
             y: { ticks: { color: '#F3F4F6', font: { size: 12, weight: 'bold' } }, grid: { display: false } }
