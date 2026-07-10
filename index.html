@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>社區健身房簽到系統</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center p-4">
+
+  <div id="nav-bar" class="hidden w-full max-w-sm flex justify-between items-center mb-4 px-2">
+    <button id="btn-toggle-view" onclick="toggleView()" class="flex items-center gap-1 bg-white px-4 py-2 rounded-full shadow text-blue-600 font-bold text-sm transition active:scale-95">
+      <span id="toggle-icon" class="material-icons text-lg">timeline</span> 
+      <span id="toggle-text">時間軸</span>
+    </button>
+    <span class="text-xs text-gray-400 font-medium">Gym Mate v2.2</span>
+  </div>
+
+  <div id="page-main" class="w-full max-w-sm bg-white p-6 rounded-3xl shadow-xl relative mt-4">
+    
+    <div id="step-bind" class="hidden">
+      <h1 class="text-2xl font-bold text-center text-blue-600 mb-2">🔗 帳號綁定</h1>
+      <p class="text-gray-500 mb-6 text-center text-sm">初次使用，請綁定您的 Google 帳號與姓名</p>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-gray-700 text-sm font-bold mb-1">Google 帳號 (Email)</label>
+          <input type="email" id="input-email" class="w-full p-3 border rounded-xl" placeholder="example@gmail.com">
+        </div>
+        <div>
+          <label class="block text-gray-700 text-sm font-bold mb-1">真實姓名</label>
+          <input type="text" id="input-name" class="w-full p-3 border rounded-xl" placeholder="請輸入姓名">
+        </div>
+        <button onclick="bindAccount()" class="w-full bg-blue-500 text-white p-3 rounded-xl font-bold text-lg hover:bg-blue-600 transition">完成綁定</button>
+      </div>
+    </div>
+
+    <div id="step-main" class="hidden flex flex-col items-center">
+      <p class="text-lg text-gray-600 mb-6">哈囉，<span id="display-name" class="font-bold text-blue-500"></span></p>
+      
+      <button id="btn-bubble" onclick="handleBubbleClick()" class="w-48 h-48 rounded-full shadow-lg text-white font-bold text-3xl flex items-center justify-center transition-all transform active:scale-95 duration-200">
+      </button>
+
+      <div id="role-selector" class="mt-8 bg-gray-50 p-2 rounded-xl flex gap-2 w-full justify-center">
+        <label class="flex-1 text-center py-2 rounded-lg cursor-pointer transition-colors text-sm" id="label-role-main">
+          <input type="radio" name="role" value="主要借用者" id="radio-main" class="mr-1"> 主要借用者
+        </label>
+        <label class="flex-1 text-center py-2 rounded-lg cursor-pointer transition-colors text-sm bg-white shadow-sm border text-blue-600 font-bold" id="label-role-sub">
+          <input type="radio" name="role" value="共同使用者" id="radio-sub" class="mr-1" checked> 共同使用者
+        </label>
+      </div>
+    </div>
+
+    <div id="step-device" class="hidden">
+      <h2 class="text-xl font-bold text-red-500 mb-4 text-center">⚠️ 簽退前確認</h2>
+      <p class="text-gray-600 mb-4 text-center text-sm">您是主要借用者，請選擇您的操作：</p>
+      
+      <div class="bg-orange-50 border border-orange-200 p-4 rounded-xl mb-4">
+        <label class="block text-orange-700 text-sm font-bold mb-2">🔄 責任交接（指定目前在場人員）：</label>
+        <select id="select-next-user" class="w-full p-2 border rounded-lg bg-white mb-3 text-gray-700">
+          <option value="">-- 請選擇接替的現場人員 --</option>
+        </select>
+        <button onclick="submitSignOut('轉移')" class="w-full bg-orange-500 text-white p-2 rounded-xl font-bold text-sm hover:bg-orange-600 transition">
+          確認將主要借用者資格轉移離開
+        </button>
+      </div>
+
+      <div class="relative flex py-2 items-center">
+        <div class="flex-grow border-t border-gray-300"></div>
+        <span class="flex-shrink-0 mx-4 text-gray-400 text-xs font-bold">或由您親自關閉</span>
+        <div class="flex-grow border-t border-gray-300"></div>
+      </div>
+
+      <div class="space-y-3 my-4 bg-gray-50 border p-4 rounded-xl text-left">
+        <label class="flex items-center space-x-3 text-gray-700 p-1 cursor-pointer">
+          <input type="checkbox" id="chk-ac" class="w-5 h-5 rounded text-blue-500">
+          <span>❄️ 冷氣 <b class="text-red-500">已關閉</b></span>
+        </label>
+        <label class="flex items-center space-x-3 text-gray-700 p-1 cursor-pointer">
+          <input type="checkbox" id="chk-light" class="w-5 h-5 rounded text-blue-500">
+          <span>💡 電燈 <b class="text-red-500">已關閉</b></span>
+        </label>
+        <label class="flex items-center space-x-3 text-gray-700 p-1 cursor-pointer">
+          <input type="checkbox" id="chk-dehumidifier" class="w-5 h-5 rounded text-blue-500">
+          <span>💧 除濕機 <b class="text-green-600">已開啟</b></span>
+        </label>
+      </div>
+      <button onclick="submitSignOut('關閉設備')" class="w-full bg-red-500 text-white p-3 rounded-xl font-bold hover:bg-red-600 transition">親自確認簽退並離開</button>
+    </div>
+
+    <div id="msg" class="mt-4 text-center font-bold text-sm text-gray-500"></div>
+  </div>
+
+  <div id="page-timeline" class="hidden w-full max-w-sm bg-white p-4 rounded-3xl shadow-xl mt-4">
+    <div class="flex justify-between items-center mb-4 gap-2">
+      <h2 class="text-sm font-bold text-gray-700 flex items-center gap-1">📊 今日健身房動態看板</h2>
+      <input type="date" id="report-date" class="bg-gray-100 text-gray-700 p-1 rounded-xl border text-xs focus:outline-none focus:border-blue-500">
+    </div>
+
+    <div class="relative bg-gray-900 p-2 rounded-2xl border border-gray-800 h-[450px]">
+      <canvas id="timeChart"></canvas>
+      <div id="no-data" class="hidden absolute inset-0 flex items-center justify-center text-gray-500 text-sm font-bold bg-gray-900/90 rounded-2xl">
+        📭 該日期沒有任何進出紀錄
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =================【請貼上你的 GAS Web App URL】=================
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbz5N0iuhQZSvxARW8tv8sPHmlGhy4PiC3KSJe73ahtR04aBhdHYMTz9BhbFeRQrPC-6/exec";
+    // ===========================================================================
+
+    let myChart = null;
+    let currentView = 'main';
+
+    // 💡 終極排版優化：將時間標籤外推至長條兩側，小於一小時絕不重疊
+    const customLabelsPlugin = {
+      id: 'customLabels',
+      afterDatasetsDraw(chart) {
+        const { ctx, data } = chart;
+        ctx.save();
+        ctx.font = 'bold 11px sans-serif'; 
+        ctx.fillStyle = '#9CA3AF'; 
+        ctx.textBaseline = 'middle'; // 與長條圖垂直置中對齊
+
+        chart.getDatasetMeta(0).data.forEach((bar, index) => {
+          const record = data.datasets[0].data[index];
+          
+          // 🟩 簽到時間：推到長條左側外面 (base - 6)，文字靠右對齊
+          ctx.textAlign = 'right';
+          ctx.fillText(record.startLabel, bar.base - 6, bar.y);
+          
+          // 🟥 簽退時間：推到長條右側外面 (x + 6)，文字靠左對齊
+          ctx.textAlign = 'left';
+          ctx.fillText(record.endLabel, bar.x + 6, bar.y);
+        });
+        ctx.restore();
+      }
+    };
+    Chart.register(customLabelsPlugin);
+
+    // 點擊切換身分即時美化監聽器
+    document.addEventListener('change', function(e) {
+      if (e.target && e.target.name === 'role') {
+        var labelMain = document.getElementById('label-role-main');
+        var labelSub = document.getElementById('label-role-sub');
+        if (e.target.value === '主要借用者') {
+          labelMain.className = "flex-1 text-center py-2 rounded-lg cursor-pointer bg-white shadow-sm border text-blue-600 font-bold text-sm";
+          labelSub.className = "flex-1 text-center py-2 rounded-lg cursor-pointer text-gray-400 text-sm";
+        } else {
+          labelSub.className = "flex-1 text-center py-2 rounded-lg cursor-pointer bg-white shadow-sm border text-blue-600 font-bold text-sm";
+          labelMain.className = "flex-1 text-center py-2 rounded-lg cursor-pointer text-gray-400 text-sm";
+        }
+      }
+    });
+
+    window.onload = function() {
+      var savedEmail = localStorage.getItem('gym_email');
+      var savedName = localStorage.getItem('gym_username');
+      
+      const today = new Date();
+      const todayStr = today.getFullYear() + "-" + ("0" + (today.getMonth() + 1)).slice(-2) + "-" + ("0" + today.getDate()).slice(-2);
+      document.getElementById('report-date').value = todayStr;
+      document.getElementById('report-date').addEventListener('change', function(e) { fetchAndRenderChart(e.target.value); });
+
+      if (!savedEmail || !savedName) {
+        document.getElementById('step-bind').classList.remove('hidden');
+      } else {
+        document.getElementById('nav-bar').classList.remove('hidden');
+        showMainPage(savedName);
+      }
+    };
+
+    function toggleView() {
+      const pageMain = document.getElementById('page-main');
+      const pageTimeline = document.getElementById('page-timeline');
+      const toggleIcon = document.getElementById('toggle-icon');
+      const toggleText = document.getElementById('toggle-text');
+
+      if (currentView === 'main') {
+        currentView = 'timeline';
+        pageMain.classList.add('hidden');
+        pageTimeline.classList.remove('hidden');
+        toggleIcon.innerText = 'home';
+        toggleText.innerText = '回首頁';
+        fetchAndRenderChart(document.getElementById('report-date').value);
+      } else {
+        currentView = 'main';
+        pageTimeline.classList.add('hidden');
+        pageMain.classList.remove('hidden');
+        toggleIcon.innerText = 'timeline';
+        toggleText.innerText = '時間軸';
+      }
+    }
+
+    function bindAccount() {
+      var email = document.getElementById('input-email').value.trim();
+      var name = document.getElementById('input-name').value.trim();
+      if (!email || !name) { alert('請填寫完整資訊！'); return; }
+      
+      localStorage.setItem('gym_email', email);
+      localStorage.setItem('gym_username', name);
+      localStorage.setItem('gym_status', 'checked_out'); 
+      
+      document.getElementById('nav-bar').classList.remove('hidden');
+      document.getElementById('step-bind').classList.add('hidden');
+      showMainPage(name);
+    }
+
+    function showMainPage(name) {
+      document.getElementById('step-main').classList.remove('hidden');
+      document.getElementById('display-name').innerText = name;
+      updateBubbleUI();
+    }
+
+    function updateBubbleUI() {
+      var status = localStorage.getItem('gym_status') || 'checked_out';
+      var bubble = document.getElementById('btn-bubble');
+      var roleSelector = document.getElementById('role-selector');
+
+      if (status === 'checked_out') {
+        bubble.innerText = "簽到";
+        bubble.className = "w-48 h-48 rounded-full shadow-lg text-white font-bold text-4xl flex items-center justify-center transition-all transform active:scale-95 duration-200 bg-gradient-to-br from-green-400 to-green-600 shadow-green-500/50";
+        roleSelector.style.opacity = "1";
+        roleSelector.style.pointerEvents = "auto";
+      } else {
+        bubble.innerText = "簽退";
+        bubble.className = "w-48 h-48 rounded-full shadow-lg text-white font-bold text-4xl flex items-center justify-center transition-all transform active:scale-95 duration-200 bg-gradient-to-br from-red-400 to-red-600 shadow-red-500/50";
+        roleSelector.style.opacity = "0.5";
+        roleSelector.style.pointerEvents = "none";
+      }
+    }
+
+    function handleBubbleClick() {
+      var status = localStorage.getItem('gym_status') || 'checked_out';
+      if (status === 'checked_out') {
+        processCheckIn();
+      } else {
+        processPreCheckOut();
+      }
+    }
+
+    function processCheckIn() {
+      var name = localStorage.getItem('gym_username');
+      var email = localStorage.getItem('gym_email');
+      var role = document.querySelector('input[name="role"]:checked').value;
+      var bubble = document.getElementById('btn-bubble');
+      bubble.innerText = "處理中...";
+
+      var payload = { action: '簽到', name: name, email: email, role: role };
+
+      fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) })
+      .then(res => res.json())
+      .then(() => {
+        bubble.innerText = "簽到成功";
+        localStorage.setItem('gym_status', 'checked_in');
+        localStorage.setItem('gym_current_role', role); 
+        setTimeout(updateBubbleUI, 1500);
+      })
+      .catch(err => { alert("連線失敗"); updateBubbleUI(); });
+    }
+
+    function processPreCheckOut() {
+      var name = localStorage.getItem('gym_username');
+      var bubble = document.getElementById('btn-bubble');
+      bubble.innerText = "驗證中...";
+      showLoading("正在驗證身份與交接狀態...");
+      
+      fetch(GAS_URL, { 
+        method: "POST", 
+        body: JSON.stringify({ action: "檢查目前身分", name: name }) 
+      })
+      .then(res => res.json())
+      .then(response => {
+        var latestRole = response.role || '共同使用者';
+        localStorage.setItem('gym_current_role', latestRole); 
+        
+        if (latestRole === '主要借用者') {
+          showLoading("正在撈取現場其他人員名單...");
+          fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: "取得在場名單", excludeName: name }) })
+          .then(res => res.json())
+          .then(resList => {
+            hideLoading();
+            bubble.innerText = "簽退";
+            
+            var select = document.getElementById('select-next-user');
+            select.innerHTML = '<option value="">-- 請選擇接替的現場人員 --</option>'; 
+            if (resList.users && resList.users.length > 0) {
+              resList.users.forEach(function(username) {
+                var opt = document.createElement('option');
+                opt.value = username;
+                opt.innerText = username;
+                select.appendChild(opt);
+              });
+            }
+            document.getElementById('step-main').classList.add('hidden');
+            document.getElementById('step-device').classList.remove('hidden');
+          });
+        } else {
+          hideLoading();
+          bubble.innerText = "處理中...";
+          var payload = { action: '簽退', name: name, email: localStorage.getItem('gym_email'), role: '共同使用者' };
+          fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) })
+          .then(() => {
+            bubble.innerText = "簽退成功";
+            localStorage.setItem('gym_status', 'checked_out');
+            setTimeout(updateBubbleUI, 1500);
+          });
+        }
+      })
+      .catch(err => {
+        alert("網路連線逾時，請重試");
+        bubble.innerText = "簽退";
+        hideLoading();
+      });
+    }
+
+    function submitSignOut(mode) {
+      var name = localStorage.getItem('gym_username');
+      var payload = { action: '簽退', name: name, email: localStorage.getItem('gym_email'), role: '主要借用者' };
+
+      if (mode === '轉移') {
+        var nextUser = document.getElementById('select-next-user').value;
+        if (!nextUser) { alert('請選擇現場接替人員！若無人，請走下方親自確認設備流程。'); return; }
+        payload.transferTo = nextUser; 
+      } else {
+        var isAcChecked = document.getElementById('chk-ac').checked;
+        var isLightChecked = document.getElementById('chk-light').checked;
+        var isDehChecked = document.getElementById('chk-dehumidifier').checked;
+        if (!isAcChecked || !isLightChecked || !isDehChecked) {
+          alert('請確實檢查冷氣、電燈已關閉，除濕機已開啟！');
+          return;
+        }
+        payload.acCheck = "已關閉";
+        payload.lightCheck = "已關閉";
+        payload.dehumidifierCheck = "已開啟";
+      }
+
+      showLoading("正在記錄狀態....");
+      fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) })
+      .then(res => res.json())
+      .then(() => {
+        localStorage.setItem('gym_status', 'checked_out');
+        showSuccess("👋 簽退成功！");
+        setTimeout(() => {
+          hideLoading();
+          document.getElementById('step-device').classList.add('hidden');
+          document.getElementById('step-main').classList.remove('hidden');
+          document.getElementById('chk-ac').checked = false;
+          document.getElementById('chk-light').checked = false;
+          document.getElementById('chk-dehumidifier').checked = false;
+          updateBubbleUI();
+        }, 2000);
+      });
+    }
+
+    function fetchAndRenderChart(dateStr) {
+      const noDataHint = document.getElementById('no-data');
+      if (myChart) { myChart.destroy(); }
+      noDataHint.classList.add('hidden');
+
+      fetch(GAS_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "取得報表圖表", date: dateStr })
+      })
+      .then(res => res.json())
+      .then(data => {
+        renderChart(data);
+      })
+      .catch(err => {
+        noDataHint.classList.remove('hidden');
+      });
+    }
+
+    function renderChart(data) {
+      const names = Object.keys(data);
+      const ctx = document.getElementById('timeChart').getContext('2d');
+      const noDataHint = document.getElementById('no-data');
+
+      if (names.length === 0) {
+        noDataHint.classList.remove('hidden');
+        return;
+      }
+
+      const chartData = [];
+      names.forEach(name => {
+        data[name].forEach(record => {
+          chartData.push({
+            y: name,
+            x: [record.start, record.end],
+            startLabel: record.startLabel,
+            endLabel: record.endLabel
+          });
+        });
+      });
+
+      myChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          datasets: [{
+            data: chartData,
+            backgroundColor: 'rgba(59, 130, 246, 0.85)',
+            borderColor: '#3b82f6',
+            borderWidth: 1,
+            borderRadius: 6,
+            borderSkipped: false,
+            barPercentage: 0.5
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { 
+            // 💡 左右側留白 45px，預留空間給推出去的時間標籤，避免邊緣文字被切掉
+            padding: { left: 45, right: 45, top: 15, bottom: 10 } 
+          },
+          scales: {
+            x: {
+              min: 360, max: 1440,
+              ticks: { stepSize: 120, callback: value => ("0" + Math.floor(value / 60)).slice(-2) + ":00", color: '#9CA3AF', font: { size: 10 } },
+              grid: { color: '#374151' }
+            },
+            y: { ticks: { color: '#F3F4F6', font: { size: 12, weight: 'bold' } }, grid: { display: false } }
+          },
+          plugins: { legend: { display: false }, tooltip: { enabled: false } }
+        }
+      });
+    }
+
+    function showLoading(txt) {
+      document.getElementById('msg').innerText = txt;
+      document.getElementById('msg').className = "mt-4 text-center font-bold text-sm text-amber-500";
+    }
+    function hideLoading() { document.getElementById('msg').innerText = ""; }
+    function showSuccess(txt) {
+      document.getElementById('msg').innerText = txt;
+      document.getElementById('msg').className = "mt-4 text-center font-bold text-md text-green-600";
+    }
+  </script>
+</body>
+</html>
