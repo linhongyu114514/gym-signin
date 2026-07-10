@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <style>
-    /* 隱藏滾動條但保留滾動功能 */
+    /* 隱藏滾動條但保留上下滾動功能 */
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
@@ -120,15 +120,16 @@
       <div id="no-data" class="hidden absolute inset-0 flex items-center justify-center text-gray-400 text-sm font-bold bg-gray-900/95 rounded-2xl z-10 pointer-events-none">
         📭 該日期沒有任何進出紀錄
       </div>
-      <div id="chart-scroll-area" class="h-[400px] landscape:h-[260px] w-full overflow-auto rounded-2xl hide-scrollbar scroll-smooth relative touch-pan-x touch-pan-y">
-        <div id="chart-container" class="relative" style="min-width: 900px; height: 100%;">
+      <div id="chart-scroll-area" class="h-[400px] landscape:h-[260px] w-full overflow-y-auto overflow-x-hidden rounded-2xl hide-scrollbar scroll-smooth relative touch-pan-y">
+        <div id="chart-container" class="relative w-full" style="height: 100%;">
           <canvas id="timeChart"></canvas>
         </div>
       </div>
     </div>
     
-    <div class="text-center text-xs text-gray-400 mt-3 flex items-center justify-center gap-1">
-      <span class="material-icons text-sm">touch_app</span> 點擊長條圖可查看詳細資訊
+    <div class="text-center text-xs text-gray-400 mt-3 flex flex-col items-center justify-center gap-1">
+      <span class="flex items-center gap-1"><span class="material-icons text-sm">touch_app</span> 點擊長條圖可查看詳細資訊</span>
+      <span class="flex items-center gap-1 mt-1"><span class="material-icons text-sm">swipe_up</span> 提示：您可上下滑動檢視人員</span>
     </div>
   </div>
 
@@ -406,7 +407,6 @@
       const ctx = document.getElementById('timeChart').getContext('2d');
       const noDataHint = document.getElementById('no-data');
       const chartContainer = document.getElementById('chart-container');
-      const chartScrollArea = document.getElementById('chart-scroll-area');
 
       noDataHint.classList.add('hidden');
 
@@ -415,32 +415,42 @@
         return;
       }
 
+      // 計算圖表高度，讓 Y 軸可滾動
+      const chartScrollArea = document.getElementById('chart-scroll-area');
       const requiredHeight = Math.max(names.length * 50 + 60, chartScrollArea.clientHeight);
       chartContainer.style.height = requiredHeight + 'px';
 
       const chartData = [];
+      const bgColors = []; // 💡 新增：裝載顏色陣列
+
       names.forEach(name => {
         data[name].forEach(record => {
+          const duration = record.end - record.start;
           chartData.push({
             y: name,
             x: [record.start, record.end],
             startLabel: record.startLabel,
-            endLabel: record.endLabel
+            endLabel: record.endLabel,
+            duration: duration // 將時長存起來備用
           });
+          
+          // 💡 調整：在製圖迴圈中，大於 120 分鐘就直接塗成紅色
+          if (duration > 120) {
+            bgColors.push('rgba(239, 68, 68, 0.85)'); // 紅色
+          } else {
+            bgColors.push('rgba(59, 130, 246, 0.85)'); // 預設藍色
+          }
         });
       });
-      
-      // 💡 初始化所有長條的顏色預設為藍色
-      const bgColors = chartData.map(() => 'rgba(59, 130, 246, 0.85)');
 
       myChart = new Chart(ctx, {
         type: 'bar',
         data: {
           datasets: [{
             data: chartData,
-            backgroundColor: bgColors,
-            borderColor: '#3b82f6',
-            borderWidth: 1,
+            backgroundColor: bgColors, // 💡 使用動態產生的顏色陣列
+            borderColor: '#3b82f6', // 外框可以統一，也可以跟著變
+            borderWidth: 0,
             borderRadius: 6,
             borderSkipped: false,
             barPercentage: 0.6
@@ -450,45 +460,38 @@
           indexAxis: 'y',
           responsive: true,
           maintainAspectRatio: false,
-          // 💡 點擊事件：顯示詳細資訊並判斷超時改色
           onClick: (e, activeElements, chart) => {
             if (activeElements.length > 0) {
               const index = activeElements[0].index;
               const record = chart.data.datasets[0].data[index];
-              const duration = record.x[1] - record.x[0]; // 計算使用分鐘數
+              const duration = record.duration; 
               
               let msg = `【${record.y}】\n簽到時間：${record.startLabel}\n簽退時間：${record.endLabel}\n使用時間：${Math.floor(duration/60)} 小時 ${duration%60} 分鐘`;
               
-              // 若超過 2 小時 (120 分鐘)
               if (duration > 120) {
                 msg += `\n\n⚠️ 可能超時，請確認是否有共同使用者續借`;
-                // 將點擊的該長條改為紅色 (Tailwind red-500)
-                chart.data.datasets[0].backgroundColor[index] = 'rgba(239, 68, 68, 0.85)';
-                chart.update();
               }
               alert(msg);
             }
           },
           layout: { 
-            // 由於左右兩側的字拔掉了，我們可以把 padding 縮小，給圖表更多空間
-            padding: { left: 10, right: 20, top: 10, bottom: 10 } 
+            padding: { left: 5, right: 15, top: 10, bottom: 10 } 
           },
           scales: {
             x: {
-              // 💡 更改：從 00:00 到 24:00 (1440 分鐘)
               min: 0, 
               max: 1440,
               ticks: { 
                 stepSize: 60, 
                 callback: value => {
                   let h = Math.floor(value / 60);
-                  // 處理 24 的顯示
                   let displayHour = h > 24 ? h - 24 : h;
                   return ("0" + displayHour).slice(-2) + ":00";
                 }, 
                 color: '#9CA3AF', 
-                font: { size: 10 },
-                maxRotation: 0, 
+                font: { size: 9 }, // 微調字體大小，幫助橫向完整塞下 24 個區間
+                autoSkip: false,   // 💡 強制不跳過刻度，保證 00:00~24:00 都顯示
+                maxRotation: 45,   // 若直立手機寬度不夠，允許稍微旋轉
                 minRotation: 0
               },
               grid: { color: '#374151' }
@@ -498,8 +501,6 @@
           plugins: { legend: { display: false }, tooltip: { enabled: false } }
         }
       });
-      
-      chartScrollArea.scrollLeft = 0;
     }
 
     function showLoading(txt) {
