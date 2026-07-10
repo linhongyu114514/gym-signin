@@ -127,8 +127,8 @@
       </div>
     </div>
     
-    <div class="landscape:hidden text-center text-xs text-gray-400 mt-3 flex items-center justify-center gap-1">
-      <span class="material-icons text-sm">swipe</span> 提示：您可左右/上下滑動拖曳圖表
+    <div class="text-center text-xs text-gray-400 mt-3 flex items-center justify-center gap-1">
+      <span class="material-icons text-sm">touch_app</span> 點擊長條圖可查看詳細資訊
     </div>
   </div>
 
@@ -139,28 +139,7 @@
 
     let myChart = null;
     let currentView = 'main';
-    let currentFetchDate = ""; // 💡 新增：用來記錄最後一次發送請求的日期
-
-    const customLabelsPlugin = {
-      id: 'customLabels',
-      afterDatasetsDraw(chart) {
-        const { ctx, data } = chart;
-        ctx.save();
-        ctx.font = 'bold 10px sans-serif'; 
-        ctx.fillStyle = '#9CA3AF'; 
-        ctx.textBaseline = 'middle';
-
-        chart.getDatasetMeta(0).data.forEach((bar, index) => {
-          const record = data.datasets[0].data[index];
-          ctx.textAlign = 'right';
-          ctx.fillText(record.startLabel, bar.base - 6, bar.y);
-          ctx.textAlign = 'left';
-          ctx.fillText(record.endLabel, bar.x + 6, bar.y);
-        });
-        ctx.restore();
-      }
-    };
-    Chart.register(customLabelsPlugin);
+    let currentFetchDate = ""; 
 
     document.addEventListener('change', function(e) {
       if (e.target && e.target.name === 'role') {
@@ -405,7 +384,7 @@
       if (myChart) { myChart.destroy(); }
       noDataHint.classList.add('hidden');
       
-      currentFetchDate = dateStr; // 💡 關鍵 1：記錄這次要求的日期是什麼
+      currentFetchDate = dateStr; 
 
       fetch(GAS_URL, {
         method: "POST",
@@ -413,13 +392,11 @@
       })
       .then(res => res.json())
       .then(data => {
-        // 💡 關鍵 2：收到資料時，核對這包資料的日期還是不是最新選擇的日期
-        if (currentFetchDate !== dateStr) return; // 不是最新日期，就直接丟棄！
-        
+        if (currentFetchDate !== dateStr) return; 
         renderChart(data);
       })
       .catch(err => {
-        if (currentFetchDate !== dateStr) return; // 錯誤處理一樣要檢查
+        if (currentFetchDate !== dateStr) return; 
         noDataHint.classList.remove('hidden');
       });
     }
@@ -452,13 +429,16 @@
           });
         });
       });
+      
+      // 💡 初始化所有長條的顏色預設為藍色
+      const bgColors = chartData.map(() => 'rgba(59, 130, 246, 0.85)');
 
       myChart = new Chart(ctx, {
         type: 'bar',
         data: {
           datasets: [{
             data: chartData,
-            backgroundColor: 'rgba(59, 130, 246, 0.85)',
+            backgroundColor: bgColors,
             borderColor: '#3b82f6',
             borderWidth: 1,
             borderRadius: 6,
@@ -470,17 +450,39 @@
           indexAxis: 'y',
           responsive: true,
           maintainAspectRatio: false,
+          // 💡 點擊事件：顯示詳細資訊並判斷超時改色
+          onClick: (e, activeElements, chart) => {
+            if (activeElements.length > 0) {
+              const index = activeElements[0].index;
+              const record = chart.data.datasets[0].data[index];
+              const duration = record.x[1] - record.x[0]; // 計算使用分鐘數
+              
+              let msg = `【${record.y}】\n簽到時間：${record.startLabel}\n簽退時間：${record.endLabel}\n使用時間：${Math.floor(duration/60)} 小時 ${duration%60} 分鐘`;
+              
+              // 若超過 2 小時 (120 分鐘)
+              if (duration > 120) {
+                msg += `\n\n⚠️ 可能超時，請確認是否有共同使用者續借`;
+                // 將點擊的該長條改為紅色 (Tailwind red-500)
+                chart.data.datasets[0].backgroundColor[index] = 'rgba(239, 68, 68, 0.85)';
+                chart.update();
+              }
+              alert(msg);
+            }
+          },
           layout: { 
-            padding: { left: 45, right: 45, top: 10, bottom: 10 } 
+            // 由於左右兩側的字拔掉了，我們可以把 padding 縮小，給圖表更多空間
+            padding: { left: 10, right: 20, top: 10, bottom: 10 } 
           },
           scales: {
             x: {
-              min: 300, 
-              max: 1500,
+              // 💡 更改：從 00:00 到 24:00 (1440 分鐘)
+              min: 0, 
+              max: 1440,
               ticks: { 
                 stepSize: 60, 
                 callback: value => {
                   let h = Math.floor(value / 60);
+                  // 處理 24 的顯示
                   let displayHour = h > 24 ? h - 24 : h;
                   return ("0" + displayHour).slice(-2) + ":00";
                 }, 
