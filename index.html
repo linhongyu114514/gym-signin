@@ -25,7 +25,7 @@
       <span id="toggle-icon" class="material-icons text-lg text-cyan-500">timeline</span> 
       <span id="toggle-text">時間軸</span>
     </button>
-    <span class="text-xs text-cyan-400 font-medium border border-cyan-900/50 bg-cyan-900/20 px-2.5 py-1 rounded-full shadow-inner">運動科學實驗室簽到系統</span>
+    <span class="text-xs text-cyan-400 font-medium border border-cyan-900/50 bg-cyan-900/20 px-2.5 py-1 rounded-full shadow-inner">Gym Mate v2.2</span>
   </div>
 
   <div id="page-main" class="w-full max-w-sm bg-gray-900 border border-gray-800 p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] relative mt-4">
@@ -119,7 +119,7 @@
     
     <div class="flex justify-between items-center mb-4">
       <h2 class="text-sm font-bold text-cyan-400 flex items-center shrink-0 bg-gray-800/50 border border-gray-700 px-3 py-1.5 rounded-lg shadow-inner gap-1.5">
-        <span class="material-icons text-cyan-500 text-sm">insert_chart_outlined</span> 借用紀錄
+        <span class="material-icons text-cyan-500 text-sm">insert_chart_outlined</span> 今日看板
       </h2>
       <input type="date" id="report-date" class="bg-gray-950 text-gray-200 p-1.5 rounded-xl border border-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 shrink-0 w-[125px] text-center shadow-inner cursor-pointer">
     </div>
@@ -151,8 +151,22 @@
     </div>
     
     <div class="text-center text-xs text-gray-500 mt-4 flex flex-col items-center justify-center gap-1.5">
-      <span class="flex items-center gap-1.5 bg-gray-800/40 px-3 py-1 rounded-full"><span class="material-icons text-sm text-cyan-500">touch_app</span> 點擊長條圖色塊可查看詳細資訊</span>
-      <span class="flex items-center gap-1.5 bg-gray-800/40 px-3 py-1 rounded-full mt-0.5"><span class="material-icons text-sm text-cyan-500">swipe_up</span> 可上下滑動圖表檢視借用人員名單</span>
+      <span class="flex items-center gap-1.5 bg-gray-800/40 px-3 py-1 rounded-full"><span class="material-icons text-sm text-cyan-500">touch_app</span> 點擊圖表可查看詳細資訊</span>
+      <span class="flex items-center gap-1.5 bg-gray-800/40 px-3 py-1 rounded-full mt-0.5"><span class="material-icons text-sm text-cyan-500">swipe_up</span> 您可上下滑動檢視人員名單</span>
+    </div>
+  </div>
+
+  <div id="custom-modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-50 transition-opacity duration-300">
+    <div class="w-full max-w-xs bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-2xl transform scale-95 transition-transform duration-300">
+      <div class="flex items-center gap-2 border-b border-gray-800 pb-2 mb-3">
+        <span id="modal-icon" class="material-icons text-cyan-400">info_outline</span>
+        <h3 class="text-base font-bold text-gray-100 tracking-wider">提醒</h3>
+      </div>
+      <div id="modal-body" class="text-sm text-gray-300 space-y-1.5 leading-relaxed py-1">
+      </div>
+      <button onclick="closeModal()" class="mt-4 w-full bg-gray-800 text-gray-200 border border-gray-700 py-2 rounded-xl font-medium text-sm hover:bg-gray-700 active:scale-95 transition-all">
+        確認
+      </button>
     </div>
   </div>
 
@@ -163,9 +177,32 @@
 
     let myChart = null;
     let currentView = 'main';
-    
-    // 💡 終極防呆機制：使用 Token 號碼牌來確保只接受最新一次的操作結果
     let currentFetchToken = 0; 
+
+    // 💡 修改點 2：實作自訂彈窗開關控制邏輯
+     ChilModal = document.getElementById('custom-modal');
+    function showModal(htmlContent, theme = 'cyan') {
+      const modal = document.getElementById('custom-modal');
+      const icon = document.getElementById('modal-icon');
+      document.getElementById('modal-body').innerHTML = htmlContent;
+      
+      // 根據警示狀態動態變更彈窗 ICON 與顏色
+      if (theme === 'yellow') {
+        icon.innerText = "warning";
+        icon.className = "material-icons text-amber-400";
+      } else if (theme === 'red') {
+        icon.innerText = "error_outline";
+        icon.className = "material-icons text-rose-500";
+      } else {
+        icon.innerText = "info_outline";
+        icon.className = "material-icons text-cyan-400";
+      }
+      
+      modal.classList.remove('hidden');
+    }
+    function closeModal() {
+      document.getElementById('custom-modal').classList.add('hidden');
+    }
 
     document.addEventListener('change', function(e) {
       if (e.target && e.target.name === 'role') {
@@ -240,7 +277,7 @@
         pageTimeline.classList.add('hidden');
         pageMain.classList.remove('hidden');
         toggleIcon.innerText = 'timeline';
-        toggleText.innerText = '使用人員紀錄';
+        toggleText.innerText = '時間軸';
       }
     }
 
@@ -335,7 +372,7 @@
             bubble.innerText = "簽退";
             
             var select = document.getElementById('select-next-user');
-            select.innerHTML = '<option value="">-- 請選擇續借的現場人員 --</option>'; 
+            select.innerHTML = '<option value="">-- 請選擇接替的現場人員 --</option>'; 
             if (resList.users && resList.users.length > 0) {
               resList.users.forEach(function(username) {
                 var opt = document.createElement('option');
@@ -392,7 +429,7 @@
       .then(res => res.json())
       .then(() => {
         localStorage.setItem('gym_status', 'checked_out');
-        showSuccess("👋 簽退成功！掰噗！👋");
+        showSuccess("👋 簽退成功！");
         setTimeout(() => {
           hideLoading();
           document.getElementById('step-device').classList.add('hidden');
@@ -407,15 +444,9 @@
 
     function fetchAndRenderChart(dateStr) {
       const noDataHint = document.getElementById('no-data');
-      
-      // 💡 確保完全清除上一個圖表實體，避免視覺殘留
-      if (myChart) { 
-        myChart.destroy(); 
-        myChart = null;
-      }
+      if (myChart) { myChart.destroy(); myChart = null; }
       noDataHint.classList.add('hidden');
       
-      // 💡 每次請求發出時，號碼牌加 1
       const fetchToken = ++currentFetchToken;
 
       fetch(GAS_URL, {
@@ -424,16 +455,11 @@
       })
       .then(res => res.json())
       .then(data => {
-        // 💡 收到資料後，檢查自己是不是擁有「最新」號碼牌的請求
-        // 如果不是，代表使用者已經按到別天了，直接結束函數不做任何畫面更新！
         if (currentFetchToken !== fetchToken) return; 
-        
         renderChart(data);
       })
       .catch(err => {
-        // 💡 錯誤處理也必須遵守號碼牌規則，避免把新的圖表蓋掉
         if (currentFetchToken !== fetchToken) return; 
-        
         noDataHint.classList.remove('hidden');
       });
     }
@@ -500,20 +526,30 @@
           indexAxis: 'y',
           responsive: true,
           maintainAspectRatio: false,
+          // 💡 修改點 3：將原本的原生 alert(msg) 替換成優雅的 showModal(html, theme)
           onClick: (e, activeElements, chart) => {
             if (activeElements.length > 0) {
               const index = activeElements[0].index;
               const record = chart.data.datasets[0].data[index];
               const duration = record.duration; 
               
-              let msg = `【${record.y}】\n簽到時間：${record.startLabel}\n簽退時間：${record.endLabel}\n使用時間：${Math.floor(duration/60)} 小時 ${duration%60} 分鐘`;
+              let htmlContent = `
+                <div class="font-bold text-cyan-400 text-base mb-1">👤 ${record.y}</div>
+                <div>🛫 簽到：${record.startLabel}</div>
+                <div>🛬 簽退：${record.endLabel}</div>
+                <div>⏳ 時長：${Math.floor(duration/60)} 小時 ${duration%60} 分鐘</div>
+              `;
               
+              let theme = 'cyan';
               if (record.isForcedCheckout) {
-                msg += `\n\n⚠️ 可能忘記簽退，系統強制簽退，請管理人員確認CCTV`;
+                theme = 'yellow';
+                htmlContent += `<div class="text-amber-400 mt-2 font-bold flex items-center gap-1"><span class="material-icons text-sm">error</span> 可能忘記簽退，系統強制簽退</div>`;
               } else if (duration > 120) {
-                msg += `\n\n⚠️ 可能超時，請管理人員確認Google月曆是否有共同使用者續借`;
+                theme = 'red';
+                htmlContent += `<div class="text-rose-400 mt-2 font-bold flex items-center gap-1"><span class="material-icons text-sm">report_problem</span> 可能超時，請確認是否有共同使用者續借</div>`;
               }
-              alert(msg);
+              
+              showModal(htmlContent, theme);
             }
           },
           layout: { 
