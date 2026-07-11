@@ -20,14 +20,38 @@
 </head>
 <body class="bg-gray-950 text-gray-200 min-h-screen flex flex-col items-center p-4 landscape:p-2 selection:bg-cyan-500/30">
 
+  <!-- 💡 側邊欄遮罩 (點擊旁邊可關閉) -->
+  <div id="sidebar-overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden transition-opacity" onclick="closeSidebar()"></div>
+
+  <!-- 💡 左側滑出功能列 (Sidebar) -->
+  <div id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-gray-900 border-r border-gray-800 transform -translate-x-full transition-transform duration-300 z-50 shadow-2xl flex flex-col">
+    <div class="p-5 border-b border-gray-800 flex justify-between items-center bg-gray-950/50">
+      <span class="text-cyan-400 font-bold text-lg flex items-center gap-2"><span class="material-icons">menu_open</span> 系統選單</span>
+      <button onclick="closeSidebar()" class="text-gray-400 hover:text-white transition active:scale-90"><span class="material-icons">close</span></button>
+    </div>
+    <div class="p-4 flex flex-col gap-2 mt-2">
+      <!-- 原本的借用人員記錄按鈕移到這裡 -->
+      <button onclick="toggleView(); closeSidebar();" class="flex items-center gap-3 text-gray-300 hover:text-cyan-400 p-3 rounded-xl hover:bg-gray-800 transition shadow-sm border border-transparent hover:border-cyan-900/50">
+        <span id="toggle-icon-sidebar" class="material-icons text-cyan-500">timeline</span>
+        <span id="toggle-text-sidebar" class="font-medium">借用人員記錄</span>
+      </button>
+      <!-- 新增：回報問題按鈕 -->
+      <button onclick="showReportPage(); closeSidebar();" class="flex items-center gap-3 text-gray-300 hover:text-rose-400 p-3 rounded-xl hover:bg-gray-800 transition shadow-sm border border-transparent hover:border-rose-900/50">
+        <span class="material-icons text-rose-500">report_problem</span>
+        <span class="font-medium">回報問題</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 💡 修改後的頂部導航列 (改為漢堡按鈕) -->
   <div id="nav-bar" class="hidden w-full max-w-sm landscape:max-w-3xl md:max-w-xl flex justify-between items-center mb-4 px-2 transition-all duration-300">
-    <button id="btn-toggle-view" onclick="toggleView()" class="flex items-center gap-1.5 bg-gray-900 px-4 py-2 rounded-full border border-gray-700 text-gray-300 font-bold text-sm transition hover:bg-gray-800 hover:border-cyan-500 hover:text-cyan-400 active:scale-95 shadow-lg">
-      <span id="toggle-icon" class="material-icons text-lg text-cyan-500">timeline</span> 
-      <span id="toggle-text">借用人員記錄</span>
+    <button onclick="openSidebar()" class="flex items-center justify-center bg-gray-900 w-10 h-10 rounded-full border border-gray-700 text-gray-300 transition hover:bg-gray-800 hover:border-cyan-500 hover:text-cyan-400 shadow-lg active:scale-95">
+      <span class="material-icons">menu</span>
     </button>
     <span class="text-xs text-cyan-400 font-medium border border-cyan-900/50 bg-cyan-900/20 px-2.5 py-1 rounded-full shadow-inner">運科二簽到系統</span>
   </div>
 
+  <!-- 頁面 1：主頁 (簽到/簽退/綁定) -->
   <div id="page-main" class="w-full max-w-sm bg-gray-900 border border-gray-800 p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] relative mt-4">
     
     <div id="step-bind" class="hidden">
@@ -86,18 +110,19 @@
         <div class="flex-grow border-t border-gray-800"></div>
       </div>
 
+      <!-- 💡 修改：新的設備檢查項目 -->
       <div class="space-y-2 my-4 bg-gray-950 border border-gray-800 p-4 rounded-xl text-left shadow-inner">
         <label class="flex items-center space-x-3 text-gray-300 p-1.5 cursor-pointer hover:bg-gray-900 rounded-lg transition-colors">
-          <input type="checkbox" id="chk-ac" class="w-5 h-5 rounded border-gray-700 bg-gray-900 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-gray-900">
+          <input type="checkbox" id="chk-trash" class="w-5 h-5 rounded border-gray-700 bg-gray-900 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-gray-900">
           <span class="flex-1 flex justify-between items-center border-b border-dashed border-gray-700 pb-1">
-            <span class="flex items-center gap-1"><span class="material-icons text-sm text-cyan-400">ac_unit</span> 冷氣</span> 
-            <b class="font-normal text-rose-400 text-xs bg-rose-400/10 px-2 py-0.5 rounded">已關閉</b>
+            <span class="flex items-center gap-1"><span class="material-icons text-sm text-green-400">delete_outline</span> 垃圾清理</span> 
+            <b class="font-normal text-green-400 text-xs bg-green-400/10 px-2 py-0.5 rounded">已清理</b>
           </span>
         </label>
         <label class="flex items-center space-x-3 text-gray-300 p-1.5 cursor-pointer hover:bg-gray-900 rounded-lg transition-colors">
-          <input type="checkbox" id="chk-light" class="w-5 h-5 rounded border-gray-700 bg-gray-900 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-gray-900">
+          <input type="checkbox" id="chk-ac-light" class="w-5 h-5 rounded border-gray-700 bg-gray-900 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-gray-900">
           <span class="flex-1 flex justify-between items-center border-b border-dashed border-gray-700 pb-1">
-            <span class="flex items-center gap-1"><span class="material-icons text-sm text-amber-400">lightbulb</span> 電燈</span> 
+            <span class="flex items-center gap-1"><span class="material-icons text-sm text-amber-400">power_settings_new</span> 冷氣電燈</span> 
             <b class="font-normal text-rose-400 text-xs bg-rose-400/10 px-2 py-0.5 rounded">已關閉</b>
           </span>
         </label>
@@ -115,6 +140,22 @@
     <div id="msg" class="hidden mt-4 text-center font-bold text-sm p-2.5 rounded-xl transition-all"></div>
   </div>
 
+  <!-- 💡 頁面 2：新增的問題回報頁面 -->
+  <div id="page-report" class="hidden w-full max-w-sm bg-gray-900 border border-gray-800 p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] relative mt-4">
+    <h2 class="text-xl font-bold text-rose-400 mb-4 flex items-center justify-center gap-2 border-b border-gray-800 pb-4">
+      <span class="material-icons">report_problem</span> 問題回報
+    </h2>
+    <p class="text-gray-400 mb-4 text-sm bg-gray-800/50 p-3 rounded-lg border border-gray-800">
+      如果您發現設備損壞、環境髒亂或其他異常情況，請在此描述並送出。
+    </p>
+    <textarea id="input-issue" rows="5" class="w-full p-3 bg-gray-950 text-white border border-gray-700 rounded-xl focus:border-rose-500 focus:ring-1 focus:ring-rose-500 outline-none mb-5" placeholder="請詳細描述您遇到的問題..."></textarea>
+    <div class="flex gap-3">
+      <button onclick="hideReportPage()" class="flex-1 bg-gray-800 text-gray-300 p-3 rounded-xl font-bold hover:bg-gray-700 transition active:scale-95 border border-gray-700">返回</button>
+      <button onclick="submitReport()" class="flex-[2] bg-gradient-to-r from-rose-600 to-red-600 text-white p-3 rounded-xl font-bold shadow-lg hover:from-rose-500 hover:to-red-500 transition active:scale-95">送出回報</button>
+    </div>
+  </div>
+
+  <!-- 頁面 3：時間軸頁面 -->
   <div id="page-timeline" class="hidden w-full max-w-sm landscape:max-w-3xl md:max-w-xl bg-gray-900 p-5 rounded-3xl border border-gray-800 mt-4 shadow-[0_8px_30px_rgb(0,0,0,0.5)] transition-all duration-300">
     
     <div class="flex justify-between items-center mb-4">
@@ -179,12 +220,21 @@
     let currentView = 'main';
     let currentFetchToken = 0; 
 
+    // 💡 側邊欄開關控制
+    function openSidebar() {
+      document.getElementById('sidebar').classList.remove('-translate-x-full');
+      document.getElementById('sidebar-overlay').classList.remove('hidden');
+    }
+    function closeSidebar() {
+      document.getElementById('sidebar').classList.add('-translate-x-full');
+      document.getElementById('sidebar-overlay').classList.add('hidden');
+    }
+
     function showModal(htmlContent, theme = 'cyan') {
       const modal = document.getElementById('custom-modal');
       const icon = document.getElementById('modal-icon');
       document.getElementById('modal-body').innerHTML = htmlContent;
       
-      // 根據警示狀態動態變更彈窗 ICON 與顏色
       if (theme === 'yellow') {
         icon.innerText = "warning";
         icon.className = "material-icons text-amber-400";
@@ -195,13 +245,10 @@
         icon.innerText = "info_outline";
         icon.className = "material-icons text-cyan-400";
       }
-      
       modal.classList.remove('hidden');
     }
     
-    function closeModal() {
-      document.getElementById('custom-modal').classList.add('hidden');
-    }
+    function closeModal() { document.getElementById('custom-modal').classList.add('hidden'); }
 
     document.addEventListener('change', function(e) {
       if (e.target && e.target.name === 'role') {
@@ -243,41 +290,92 @@
     function changeDate(offset) {
       const dateInput = document.getElementById('report-date');
       if (!dateInput.value) return;
-      
       const parts = dateInput.value.split('-');
       let currentDate = new Date(parts[0], parts[1] - 1, parts[2]);
       currentDate.setDate(currentDate.getDate() + offset);
-      
       const newDateStr = currentDate.getFullYear() + "-" + 
                          ("0" + (currentDate.getMonth() + 1)).slice(-2) + "-" + 
                          ("0" + currentDate.getDate()).slice(-2);
-                         
       dateInput.value = newDateStr;
       document.getElementById('display-current-date').innerText = newDateStr;
-      
       fetchAndRenderChart(newDateStr);
     }
 
+    // 💡 控制頁面跳轉邏輯
     function toggleView() {
       const pageMain = document.getElementById('page-main');
       const pageTimeline = document.getElementById('page-timeline');
-      const toggleIcon = document.getElementById('toggle-icon');
-      const toggleText = document.getElementById('toggle-text');
+      const pageReport = document.getElementById('page-report');
+      const toggleIcon = document.getElementById('toggle-icon-sidebar');
+      const toggleText = document.getElementById('toggle-text-sidebar');
 
-      if (currentView === 'main') {
+      if (currentView !== 'timeline') {
         currentView = 'timeline';
         pageMain.classList.add('hidden');
+        pageReport.classList.add('hidden');
         pageTimeline.classList.remove('hidden');
         toggleIcon.innerText = 'home';
-        toggleText.innerText = '回首頁';
+        toggleText.innerText = '返回首頁';
         fetchAndRenderChart(document.getElementById('report-date').value);
       } else {
         currentView = 'main';
         pageTimeline.classList.add('hidden');
+        pageReport.classList.add('hidden');
         pageMain.classList.remove('hidden');
         toggleIcon.innerText = 'timeline';
-        toggleText.innerText = '時間軸';
+        toggleText.innerText = '借用人員記錄';
       }
+    }
+
+    // 💡 顯示問題回報頁面
+    function showReportPage() {
+      currentView = 'report';
+      document.getElementById('page-main').classList.add('hidden');
+      document.getElementById('page-timeline').classList.add('hidden');
+      document.getElementById('page-report').classList.remove('hidden');
+      // 將側邊欄的按鈕文字切換為可回首頁
+      document.getElementById('toggle-icon-sidebar').innerText = 'home';
+      document.getElementById('toggle-text-sidebar').innerText = '返回首頁';
+    }
+
+    // 💡 隱藏問題回報頁面，回到首頁
+    function hideReportPage() {
+      currentView = 'main';
+      document.getElementById('page-report').classList.add('hidden');
+      document.getElementById('page-main').classList.remove('hidden');
+      document.getElementById('toggle-icon-sidebar').innerText = 'timeline';
+      document.getElementById('toggle-text-sidebar').innerText = '借用人員記錄';
+    }
+
+    // 💡 送出問題回報
+    function submitReport() {
+      const issueText = document.getElementById('input-issue').value.trim();
+      if (!issueText) {
+        alert("請輸入問題描述！");
+        return;
+      }
+      
+      showLoading("回報提交中...");
+      var name = localStorage.getItem('gym_username');
+      var email = localStorage.getItem('gym_email');
+
+      fetch(GAS_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "回報問題", name: name, email: email, issue: issueText })
+      })
+      .then(res => res.json())
+      .then(() => {
+        showSuccess("回報已送出！感謝您的協助 🙌");
+        setTimeout(() => {
+          hideLoading();
+          document.getElementById('input-issue').value = ''; // 清空輸入框
+          hideReportPage(); // 自動回到首頁
+        }, 2000);
+      })
+      .catch(err => {
+        alert("連線失敗，請重試");
+        hideLoading();
+      });
     }
 
     function bindAccount() {
@@ -320,11 +418,8 @@
 
     function handleBubbleClick() {
       var status = localStorage.getItem('gym_status') || 'checked_out';
-      if (status === 'checked_out') {
-        processCheckIn();
-      } else {
-        processPreCheckOut();
-      }
+      if (status === 'checked_out') { processCheckIn(); } 
+      else { processPreCheckOut(); }
     }
 
     function processCheckIn() {
@@ -411,15 +506,16 @@
         if (!nextUser) { alert('請選擇現場接替人員！若無人，請走下方親自確認設備流程。'); return; }
         payload.transferTo = nextUser; 
       } else {
-        var isAcChecked = document.getElementById('chk-ac').checked;
-        var isLightChecked = document.getElementById('chk-light').checked;
+        // 💡 修改驗證的新設備 checkbox
+        var isTrashChecked = document.getElementById('chk-trash').checked;
+        var isAcLightChecked = document.getElementById('chk-ac-light').checked;
         var isDehChecked = document.getElementById('chk-dehumidifier').checked;
-        if (!isAcChecked || !isLightChecked || !isDehChecked) {
-          alert('請確實檢查冷氣、電燈已關閉，除濕機已開啟！');
+        if (!isTrashChecked || !isAcLightChecked || !isDehChecked) {
+          alert('請確實檢查垃圾已清理、冷氣電燈已關閉，除濕機已開啟！');
           return;
         }
-        payload.acCheck = "已關閉";
-        payload.lightCheck = "已關閉";
+        payload.trashCheck = "已清理";
+        payload.acLightCheck = "已關閉";
         payload.dehumidifierCheck = "已開啟";
       }
 
@@ -433,8 +529,8 @@
           hideLoading();
           document.getElementById('step-device').classList.add('hidden');
           document.getElementById('step-main').classList.remove('hidden');
-          document.getElementById('chk-ac').checked = false;
-          document.getElementById('chk-light').checked = false;
+          document.getElementById('chk-trash').checked = false;
+          document.getElementById('chk-ac-light').checked = false;
           document.getElementById('chk-dehumidifier').checked = false;
           updateBubbleUI();
         }, 2000);
@@ -550,13 +646,10 @@
               showModal(htmlContent, theme);
             }
           },
-          layout: { 
-            padding: { left: 5, right: 15, top: 10, bottom: 10 } 
-          },
+          layout: { padding: { left: 5, right: 15, top: 10, bottom: 10 } },
           scales: {
             x: {
-              min: 0, 
-              max: 1440,
+              min: 0, max: 1440,
               ticks: { 
                 stepSize: 60, 
                 callback: value => {
@@ -564,11 +657,7 @@
                   let displayHour = h > 24 ? h - 24 : h;
                   return ("0" + displayHour).slice(-2) + ":00";
                 }, 
-                color: '#9CA3AF', 
-                font: { size: 9 }, 
-                autoSkip: false,   
-                maxRotation: 45,   
-                minRotation: 0
+                color: '#9CA3AF', font: { size: 9 }, autoSkip: false, maxRotation: 45, minRotation: 0
               },
               grid: { color: 'rgba(255, 255, 255, 0.05)' } 
             },
