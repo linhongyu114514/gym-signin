@@ -114,7 +114,6 @@
         <div class="flex-grow border-t border-gray-800"></div>
       </div>
 
-      <!-- 💡 修改後的設備檢查選項 -->
       <div class="space-y-2 my-4 bg-gray-950 border border-gray-800 p-4 rounded-xl text-left shadow-inner">
         <label class="flex items-center space-x-3 text-gray-300 p-1.5 cursor-pointer hover:bg-gray-900 rounded-lg transition-colors">
           <input type="checkbox" id="chk-trash" class="w-5 h-5 rounded border-gray-700 bg-gray-900 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-gray-900">
@@ -139,7 +138,7 @@
     </div>
 
     <!-- 系統訊息框 -->
-    <div id="msg" class="hidden mt-4 text-center font-bold text-sm p-2.5 rounded-xl transition-all"></div>
+    <div id="msg" class="hidden mt-4 text-center font-bold text-sm p-2.5 rounded-xl transition-all z-50 relative"></div>
   </div>
 
   <!-- ================= 頁面 2：送出問題回報頁面 ================= -->
@@ -272,6 +271,7 @@
       }
     }
 
+    // 🔥 取代原生 alert() 的自訂彈窗
     function showModal(htmlContent, theme = 'cyan') {
       const modal = document.getElementById('custom-modal');
       const icon = document.getElementById('modal-icon');
@@ -364,7 +364,10 @@
     function bindAccount() {
       var email = document.getElementById('input-email').value.trim();
       var name = document.getElementById('input-name').value.trim();
-      if (!email || !name) { alert('請填寫完整資訊！'); return; }
+      if (!email || !name) { 
+        showModal('<div class="text-amber-400 font-bold text-center">⚠️ 請填寫完整的 Email 與真實姓名！</div>', 'yellow'); 
+        return; 
+      }
       localStorage.setItem('gym_email', email);
       localStorage.setItem('gym_username', name);
       localStorage.setItem('gym_status', 'checked_out'); 
@@ -418,7 +421,10 @@
         localStorage.setItem('gym_current_role', role); 
         setTimeout(updateBubbleUI, 1500);
       })
-      .catch(err => { alert("連線失敗"); updateBubbleUI(); });
+      .catch(err => { 
+        showModal('<div class="text-rose-400 font-bold text-center">網路連線失敗，請稍後重試</div>', 'red'); 
+        updateBubbleUI(); 
+      });
     }
 
     function processPreCheckOut() {
@@ -463,7 +469,11 @@
           });
         }
       })
-      .catch(err => { alert("網路連線逾時，請重試"); bubble.innerText = "簽退"; hideLoading(); });
+      .catch(err => { 
+        showModal('<div class="text-rose-400 font-bold text-center">網路連線逾時，請稍後重試</div>', 'red'); 
+        bubble.innerText = "簽退"; 
+        hideLoading(); 
+      });
     }
 
     function submitSignOut(mode) {
@@ -472,14 +482,20 @@
 
       if (mode === '轉移') {
         var nextUser = document.getElementById('select-next-user').value;
-        if (!nextUser) { alert('請選擇現場接替人員！若無人，請走下方親自確認設備流程。'); return; }
+        if (!nextUser) { 
+          // 💡 替換成漂亮彈窗
+          showModal('<div class="text-rose-400 font-bold text-center mb-1">請選擇現場接替人員！</div><div class="text-gray-400 text-xs text-center">若現場無人，請走下方親自確認設備流程。</div>', 'red'); 
+          return; 
+        }
         payload.transferTo = nextUser; 
       } else {
         var isTrashChecked = document.getElementById('chk-trash').checked;
         var isAcLightChecked = document.getElementById('chk-ac-light').checked;
         var isDehChecked = document.getElementById('chk-dehumidifier').checked;
         if (!isTrashChecked || !isAcLightChecked || !isDehChecked) {
-          alert('請確實檢查垃圾清理、關閉冷氣與電燈，並開啟除濕機！'); return;
+          // 💡 替換成漂亮彈窗
+          showModal('<div class="text-rose-400 font-bold text-center mb-2">請確實完成以下檢查：</div><div class="text-gray-300 text-sm text-left inline-block">✅ 垃圾已清理<br>✅ 關閉冷氣與電燈<br>✅ 開啟除濕機</div>', 'red'); 
+          return;
         }
         payload.trashCheck = "已清理"; payload.acLightCheck = "已關閉"; payload.dehumidifierCheck = "已開啟";
       }
@@ -505,7 +521,10 @@
     // --- 問題回報提交 ---
     function submitReport() {
       const issueText = document.getElementById('input-issue').value.trim();
-      if (!issueText) { alert("請輸入問題描述！"); return; }
+      if (!issueText) { 
+        showModal('<div class="text-amber-400 font-bold text-center">⚠️ 請輸入問題描述！</div>', 'yellow'); 
+        return; 
+      }
       
       const btn = event.target;
       btn.innerText = "提交中...";
@@ -517,14 +536,19 @@
       fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: "回報問題", name: name, email: email, issue: issueText }) })
       .then(res => res.json())
       .then(() => {
-        alert("回報已送出！感謝您的協助 🙌");
         document.getElementById('input-issue').value = ''; 
         btn.innerText = "送出回報";
         btn.disabled = false;
         navigateTo('main'); // 送出後自動回首頁
+        
+        // 💡 將原本會卡住畫面的 alert 換成浮動綠色成功訊息
+        showSuccess("回報已送出！感謝您的協助 🙌");
+        setTimeout(() => {
+          hideLoading();
+        }, 2000);
       })
       .catch(err => {
-        alert("連線失敗，請重試");
+        showModal('<div class="text-rose-400 font-bold text-center">連線失敗，請重試</div>', 'red');
         btn.innerText = "送出回報";
         btn.disabled = false;
       });
