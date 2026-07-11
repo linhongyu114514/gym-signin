@@ -243,6 +243,10 @@
     let myChart = null;
     let currentFetchToken = 0; 
     let currentHistoryToken = 0;
+    
+    // 💡 防連點全域鎖定變數
+    let isBubbleProcessing = false;
+    let isSubmittingSignOut = false;
 
     // --- 側邊欄與頁面導航邏輯 ---
     function openSidebar() {
@@ -383,6 +387,8 @@
     }
 
     function updateBubbleUI() {
+      isBubbleProcessing = false; // 💡 畫面更新時自動解開防連點鎖定
+
       var status = localStorage.getItem('gym_status') || 'checked_out';
       var bubble = document.getElementById('btn-bubble');
       var roleSelector = document.getElementById('role-selector');
@@ -401,6 +407,10 @@
     }
 
     function handleBubbleClick() {
+      // 💡 防連點：如果已經在處理中，直接略過這次點擊
+      if (isBubbleProcessing) return;
+      isBubbleProcessing = true;
+
       var status = localStorage.getItem('gym_status') || 'checked_out';
       if (status === 'checked_out') { processCheckIn(); } 
       else { processPreCheckOut(); }
@@ -457,6 +467,7 @@
             }
             document.getElementById('step-main').classList.add('hidden');
             document.getElementById('step-device').classList.remove('hidden');
+            isBubbleProcessing = false; // 💡 切換到設備檢查頁面後解開鎖定
           });
         } else {
           hideLoading();
@@ -471,19 +482,21 @@
       })
       .catch(err => { 
         showModal('<div class="text-rose-400 font-bold text-center">網路連線逾時，請稍後重試</div>', 'red'); 
-        bubble.innerText = "簽退"; 
         hideLoading(); 
+        updateBubbleUI(); // 💡 確保解鎖並恢復按鈕文字
       });
     }
 
     function submitSignOut(mode) {
+      // 💡 防連點：如果已經在送出簽退，直接略過
+      if (isSubmittingSignOut) return;
+
       var name = localStorage.getItem('gym_username');
       var payload = { action: '簽退', name: name, email: localStorage.getItem('gym_email'), role: '主要借用者' };
 
       if (mode === '轉移') {
         var nextUser = document.getElementById('select-next-user').value;
         if (!nextUser) { 
-          // 💡 替換成漂亮彈窗
           showModal('<div class="text-rose-400 font-bold text-center mb-1">請選擇現場接替人員！</div><div class="text-gray-400 text-xs text-center">若現場無人，請走下方親自確認設備流程。</div>', 'red'); 
           return; 
         }
@@ -493,14 +506,15 @@
         var isAcLightChecked = document.getElementById('chk-ac-light').checked;
         var isDehChecked = document.getElementById('chk-dehumidifier').checked;
         if (!isTrashChecked || !isAcLightChecked || !isDehChecked) {
-          // 💡 替換成漂亮彈窗
           showModal('<div class="text-rose-400 font-bold text-center mb-2">請確實完成以下檢查：</div><div class="text-gray-300 text-sm text-left inline-block">✅ 垃圾已清理<br>✅ 關閉冷氣與電燈<br>✅ 開啟除濕機</div>', 'red'); 
           return;
         }
         payload.trashCheck = "已清理"; payload.acLightCheck = "已關閉"; payload.dehumidifierCheck = "已開啟";
       }
 
+      isSubmittingSignOut = true; // 💡 上鎖
       showLoading("記錄中...");
+
       fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) })
       .then(res => res.json())
       .then(() => {
@@ -514,7 +528,13 @@
           document.getElementById('chk-ac-light').checked = false;
           document.getElementById('chk-dehumidifier').checked = false;
           updateBubbleUI();
+          isSubmittingSignOut = false; // 💡 成功後解鎖
         }, 2000);
+      })
+      .catch(err => {
+         showModal('<div class="text-rose-400 font-bold text-center">網路連線失敗，請稍後重試</div>', 'red'); 
+         hideLoading();
+         isSubmittingSignOut = false; // 💡 失敗後解鎖
       });
     }
 
@@ -541,11 +561,8 @@
         btn.disabled = false;
         navigateTo('main'); // 送出後自動回首頁
         
-        // 💡 將原本會卡住畫面的 alert 換成浮動綠色成功訊息
         showSuccess("回報已送出！感謝您的協助 🙌");
-        setTimeout(() => {
-          hideLoading();
-        }, 2000);
+        setTimeout(() => { hideLoading(); }, 2000);
       })
       .catch(err => {
         showModal('<div class="text-rose-400 font-bold text-center">連線失敗，請重試</div>', 'red');
