@@ -110,30 +110,28 @@
 
       <div class="relative flex py-2 items-center">
         <div class="flex-grow border-t border-gray-800"></div>
-        <span class="flex-shrink-0 mx-4 text-gray-500 text-xs font-bold">或親自關閉設備</span>
+        <span class="flex-shrink-0 mx-4 text-gray-500 text-xs font-bold">或在離開前親自檢查下列項目</span>
         <div class="flex-grow border-t border-gray-800"></div>
       </div>
 
+      <!-- 💡 修改後的設備檢查選項 -->
       <div class="space-y-2 my-4 bg-gray-950 border border-gray-800 p-4 rounded-xl text-left shadow-inner">
         <label class="flex items-center space-x-3 text-gray-300 p-1.5 cursor-pointer hover:bg-gray-900 rounded-lg transition-colors">
           <input type="checkbox" id="chk-trash" class="w-5 h-5 rounded border-gray-700 bg-gray-900 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-gray-900">
           <span class="flex-1 flex justify-between items-center border-b border-dashed border-gray-700 pb-1">
             <span class="flex items-center gap-1"><span class="material-icons text-sm text-green-400">delete_outline</span> 垃圾清理</span> 
-            <b class="font-normal text-green-400 text-xs bg-green-400/10 px-2 py-0.5 rounded">已清理</b>
           </span>
         </label>
         <label class="flex items-center space-x-3 text-gray-300 p-1.5 cursor-pointer hover:bg-gray-900 rounded-lg transition-colors">
           <input type="checkbox" id="chk-ac-light" class="w-5 h-5 rounded border-gray-700 bg-gray-900 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-gray-900">
           <span class="flex-1 flex justify-between items-center border-b border-dashed border-gray-700 pb-1">
-            <span class="flex items-center gap-1"><span class="material-icons text-sm text-amber-400">power_settings_new</span> 冷氣電燈</span> 
-            <b class="font-normal text-rose-400 text-xs bg-rose-400/10 px-2 py-0.5 rounded">已關閉</b>
+            <span class="flex items-center gap-1"><span class="material-icons text-sm text-amber-400">power_settings_new</span> 關閉冷氣與電燈</span> 
           </span>
         </label>
         <label class="flex items-center space-x-3 text-gray-300 p-1.5 cursor-pointer hover:bg-gray-900 rounded-lg transition-colors">
           <input type="checkbox" id="chk-dehumidifier" class="w-5 h-5 rounded border-gray-700 bg-gray-900 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-gray-900">
           <span class="flex-1 flex justify-between items-center border-b border-dashed border-gray-700 pb-1 border-transparent">
-            <span class="flex items-center gap-1"><span class="material-icons text-sm text-blue-400">water_drop</span> 除濕機</span> 
-            <b class="font-normal text-emerald-400 text-xs bg-emerald-400/10 px-2 py-0.5 rounded">已開啟</b>
+            <span class="flex items-center gap-1"><span class="material-icons text-sm text-blue-400">water_drop</span> 開啟除濕機</span> 
           </span>
         </label>
       </div>
@@ -481,7 +479,7 @@
         var isAcLightChecked = document.getElementById('chk-ac-light').checked;
         var isDehChecked = document.getElementById('chk-dehumidifier').checked;
         if (!isTrashChecked || !isAcLightChecked || !isDehChecked) {
-          alert('請確實檢查垃圾已清理、冷氣電燈已關閉，除濕機已開啟！'); return;
+          alert('請確實檢查垃圾清理、關閉冷氣與電燈，並開啟除濕機！'); return;
         }
         payload.trashCheck = "已清理"; payload.acLightCheck = "已關閉"; payload.dehumidifierCheck = "已開啟";
       }
