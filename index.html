@@ -64,8 +64,7 @@
 
   <!-- ================= 頁面 1：主頁 ================= -->
   <div id="page-main" class="w-full max-w-sm bg-gray-900 border border-gray-800 p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] relative mt-4">
-    
-    <!-- 帳號綁定區 -->
+    <!-- 帳號綁定區 (略，維持原樣) -->
     <div id="step-bind" class="hidden">
       <h1 class="text-2xl font-bold text-center text-cyan-400 mb-2 flex items-center justify-center gap-2">
         <span class="material-icons text-cyan-500">link</span> 帳號綁定
@@ -171,7 +170,8 @@
       <h2 class="text-sm font-bold text-cyan-400 flex items-center shrink-0 bg-gray-800/50 border border-gray-700 px-3 py-1.5 rounded-lg shadow-inner gap-1.5">
         <span class="material-icons text-cyan-500 text-sm">insert_chart_outlined</span> 請將手機轉成橫的
       </h2>
-      <input type="date" id="timeline-date" class="bg-gray-950 text-gray-200 p-1.5 rounded-xl border border-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 shrink-0 w-[125px] text-center shadow-inner cursor-pointer">
+      <!-- 改用 text input 供 Flatpickr 綁定 -->
+      <input type="text" id="timeline-date" class="bg-gray-950 text-gray-200 p-1.5 rounded-xl border border-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 shrink-0 w-[125px] text-center shadow-inner cursor-pointer" readonly>
     </div>
     <div class="flex justify-center mb-5 w-full">
       <div class="flex items-center justify-center bg-gray-950 border border-gray-800 rounded-xl shrink-0 p-1 shadow-inner">
@@ -184,17 +184,26 @@
         </button>
       </div>
     </div>
-    <div class="relative rounded-2xl border border-gray-800 bg-gray-950 shadow-inner p-2">
+    
+    <!-- 🚀 全新凍結 X 軸的圖表區結構 -->
+    <div class="relative flex flex-col rounded-2xl border border-gray-800 bg-gray-950 shadow-inner p-2">
       <div id="no-timeline-data" class="hidden absolute inset-0 flex items-center justify-center text-gray-400 text-sm font-bold bg-gray-950/90 rounded-2xl z-10 pointer-events-none backdrop-blur-sm">
         <div class="flex flex-col items-center gap-2">
           <span class="material-icons text-gray-500 text-3xl">inbox</span>
           <span>該日期沒有任何進出紀錄</span>
         </div>
       </div>
-      <div id="chart-scroll-area" class="h-[400px] landscape:h-[260px] w-full overflow-y-auto overflow-x-hidden rounded-xl hide-scrollbar scroll-smooth relative touch-pan-y">
+      
+      <!-- 主要內容滾動區 -->
+      <div id="chart-scroll-area" class="h-[360px] landscape:h-[220px] w-full overflow-y-auto overflow-x-hidden hide-scrollbar scroll-smooth touch-pan-y border-b border-gray-800 z-0">
         <div id="chart-container" class="relative w-full" style="height: 100%;">
           <canvas id="timeChart"></canvas>
         </div>
+      </div>
+      
+      <!-- 凍結在最下方的 X 軸圖表 -->
+      <div class="w-full h-[35px] shrink-0 pt-1 relative z-20 bg-gray-950 rounded-b-2xl">
+        <canvas id="axisChart"></canvas>
       </div>
     </div>
   </div>
@@ -205,11 +214,9 @@
       <h2 class="text-sm font-bold text-amber-400 flex items-center shrink-0 bg-gray-800/50 border border-gray-700 px-3 py-1.5 rounded-lg shadow-inner gap-1.5">
         <span class="material-icons text-amber-500 text-sm">history_edu</span> 回報紀錄
       </h2>
-      <!-- 改用 text input 讓 Flatpickr 綁定 -->
       <input type="text" id="history-date" placeholder="顯示最新50筆" class="bg-gray-950 text-gray-200 p-1.5 rounded-xl border border-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 shrink-0 w-[125px] text-center shadow-inner cursor-pointer" readonly>
     </div>
     
-    <!-- 搜尋框與重置按鈕 -->
     <div class="mb-5 flex gap-2">
       <div class="relative flex-1">
         <span class="material-icons absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">search</span>
@@ -250,20 +257,25 @@
     const GAS_URL = "https://script.google.com/macros/s/AKfycbz5N0iuhQZSvxARW8tv8sPHmlGhy4PiC3KSJe73ahtR04aBhdHYMTz9BhbFeRQrPC-6/exec";
     // ===========================================================================
 
+    // 全域變數
     let myChart = null;
+    let axisChart = null; // 新增專門畫 X 軸的 chart
+    
     let currentFetchToken = 0; 
     let currentHistoryToken = 0;
     
-    // 💡 防連點全域鎖定變數
     let isBubbleProcessing = false;
     let isSubmittingSignOut = false;
 
-    // 💡 歷史紀錄相關全域變數
+    // 歷史紀錄相關
     let currentReportsData = []; 
     let historyActiveDates = []; 
     let historyDatePicker = null; 
+    
+    // 圖表紀錄相關
+    let timelineActiveDates = []; 
+    let timelineDatePicker = null; 
 
-    // --- 側邊欄與頁面導航邏輯 ---
     function openSidebar() {
       document.getElementById('sidebar').classList.remove('-translate-x-full');
       document.getElementById('sidebar-overlay').classList.remove('hidden');
@@ -275,24 +287,19 @@
 
     function navigateTo(pageName) {
       closeSidebar();
-      // 隱藏所有頁面
       ['page-main', 'page-timeline', 'page-report', 'page-history'].forEach(id => {
         document.getElementById(id).classList.add('hidden');
       });
-      // 顯示目標頁面
       document.getElementById('page-' + pageName).classList.remove('hidden');
       
-      // 若進入特定頁面，觸發資料更新
       if (pageName === 'timeline') {
         fetchAndRenderChart(document.getElementById('timeline-date').value);
       } else if (pageName === 'history') {
-        // 切換進歷史頁面時，清空搜尋與日曆，觸發看最新50筆
         document.getElementById('search-history-name').value = '';
         if (historyDatePicker) historyDatePicker.clear(); 
       }
     }
 
-    // 🔥 取代原生 alert() 的自訂彈窗
     function showModal(htmlContent, theme = 'cyan') {
       const modal = document.getElementById('custom-modal');
       const icon = document.getElementById('modal-icon');
@@ -313,25 +320,34 @@
       const today = new Date();
       const todayStr = today.getFullYear() + "-" + ("0" + (today.getMonth() + 1)).slice(-2) + "-" + ("0" + today.getDate()).slice(-2);
       
-      // 綁定圖表日曆預設日期與變更事件
-      document.getElementById('timeline-date').value = todayStr;
-      document.getElementById('display-timeline-date').innerText = todayStr;
-      
-      document.getElementById('timeline-date').addEventListener('change', function(e) { 
-        document.getElementById('display-timeline-date').innerText = e.target.value;
-        fetchAndRenderChart(e.target.value); 
-      });
-
-      // 💡 初始化 Flatpickr 客製化日曆 (歷史紀錄用)
-      historyDatePicker = flatpickr("#history-date", {
-        disableMobile: "true", // 強制手機端使用 Flatpickr 介面，以支援 CSS 上色
+      // 💡 初始化借用人員的 Flatpickr (帶藍色圈圈)
+      timelineDatePicker = flatpickr("#timeline-date", {
+        disableMobile: true, 
         dateFormat: "Y-m-d",
         onChange: function(selectedDates, dateStr, instance) {
-          document.getElementById('search-history-name').value = ''; // 切換日期時清空搜尋框
+          document.getElementById('display-timeline-date').innerText = dateStr;
+          fetchAndRenderChart(dateStr);
+        },
+        onDayCreate: function(dObj, dStr, fp, dayElem) {
+          let dateString = fp.formatDate(dayElem.dateObj, "Y-m-d");
+          if (timelineActiveDates.includes(dateString)) {
+            dayElem.style.position = 'relative';
+            dayElem.innerHTML += '<span class="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 bg-cyan-400 rounded-full"></span>';
+          }
+        }
+      });
+      timelineDatePicker.setDate(todayStr); // 設定為今天
+      document.getElementById('display-timeline-date').innerText = todayStr;
+
+      // 💡 初始化歷史紀錄的 Flatpickr (帶藍色圈圈)
+      historyDatePicker = flatpickr("#history-date", {
+        disableMobile: true,
+        dateFormat: "Y-m-d",
+        onChange: function(selectedDates, dateStr, instance) {
+          document.getElementById('search-history-name').value = ''; 
           fetchAndRenderHistory(dateStr || "ALL");
         },
         onDayCreate: function(dObj, dStr, fp, dayElem) {
-          // 如果該日期有紀錄，就在日期數字底下加上淡藍色圈圈
           let dateString = fp.formatDate(dayElem.dateObj, "Y-m-d");
           if (historyActiveDates.includes(dateString)) {
             dayElem.style.position = 'relative';
@@ -340,7 +356,7 @@
         }
       });
 
-      // 角色選擇按鈕樣式切換
+      // 角色按鈕切換
       document.addEventListener('change', function(e) {
         if (e.target && e.target.name === 'role') {
           var labelMain = document.getElementById('label-role-main');
@@ -363,24 +379,28 @@
       }
     };
 
-    // --- 圖表日期箭頭切換 ---
+    // --- 圖表日期箭頭切換 (同步更新 Flatpickr) ---
     function changeTimelineDate(offset) {
       const dateInput = document.getElementById('timeline-date');
       if (!dateInput.value) return;
-      let newDateStr = calculateNewDate(dateInput.value, offset);
-      dateInput.value = newDateStr;
+      
+      const parts = dateInput.value.split('-');
+      let currentDate = new Date(parts[0], parts[1] - 1, parts[2]);
+      currentDate.setDate(currentDate.getDate() + offset);
+      let newDateStr = currentDate.getFullYear() + "-" + ("0" + (currentDate.getMonth() + 1)).slice(-2) + "-" + ("0" + currentDate.getDate()).slice(-2);
+      
+      // 更新日曆與 UI
+      if (timelineDatePicker) {
+        timelineDatePicker.setDate(newDateStr);
+      } else {
+        dateInput.value = newDateStr; 
+      }
+      
       document.getElementById('display-timeline-date').innerText = newDateStr;
       fetchAndRenderChart(newDateStr);
     }
 
-    function calculateNewDate(dateStr, offset) {
-      const parts = dateStr.split('-');
-      let currentDate = new Date(parts[0], parts[1] - 1, parts[2]);
-      currentDate.setDate(currentDate.getDate() + offset);
-      return currentDate.getFullYear() + "-" + ("0" + (currentDate.getMonth() + 1)).slice(-2) + "-" + ("0" + currentDate.getDate()).slice(-2);
-    }
-
-    // --- 綁定與簽到退核心邏輯 ---
+    // --- 綁定與簽到退邏輯 ---
     function bindAccount() {
       var email = document.getElementById('input-email').value.trim();
       var name = document.getElementById('input-name').value.trim();
@@ -403,8 +423,7 @@
     }
 
     function updateBubbleUI() {
-      isBubbleProcessing = false; // 💡 畫面更新時自動解開防連點鎖定
-
+      isBubbleProcessing = false; 
       var status = localStorage.getItem('gym_status') || 'checked_out';
       var bubble = document.getElementById('btn-bubble');
       var roleSelector = document.getElementById('role-selector');
@@ -423,7 +442,6 @@
     }
 
     function handleBubbleClick() {
-      // 💡 防連點：如果已經在處理中，直接略過這次點擊
       if (isBubbleProcessing) return;
       isBubbleProcessing = true;
 
@@ -483,7 +501,7 @@
             }
             document.getElementById('step-main').classList.add('hidden');
             document.getElementById('step-device').classList.remove('hidden');
-            isBubbleProcessing = false; // 💡 切換到設備檢查頁面後解開鎖定
+            isBubbleProcessing = false; 
           });
         } else {
           hideLoading();
@@ -499,12 +517,11 @@
       .catch(err => { 
         showModal('<div class="text-rose-400 font-bold text-center">網路連線逾時，請稍後重試</div>', 'red'); 
         hideLoading(); 
-        updateBubbleUI(); // 💡 確保解鎖並恢復按鈕文字
+        updateBubbleUI(); 
       });
     }
 
     function submitSignOut(mode) {
-      // 💡 防連點：如果已經在送出簽退，直接略過
       if (isSubmittingSignOut) return;
 
       var name = localStorage.getItem('gym_username');
@@ -528,7 +545,7 @@
         payload.trashCheck = "已清理"; payload.acLightCheck = "已關閉"; payload.dehumidifierCheck = "已開啟";
       }
 
-      isSubmittingSignOut = true; // 💡 上鎖
+      isSubmittingSignOut = true; 
       showLoading("記錄中...");
 
       fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) })
@@ -544,13 +561,13 @@
           document.getElementById('chk-ac-light').checked = false;
           document.getElementById('chk-dehumidifier').checked = false;
           updateBubbleUI();
-          isSubmittingSignOut = false; // 💡 成功後解鎖
+          isSubmittingSignOut = false; 
         }, 2000);
       })
       .catch(err => {
          showModal('<div class="text-rose-400 font-bold text-center">網路連線失敗，請稍後重試</div>', 'red'); 
          hideLoading();
-         isSubmittingSignOut = false; // 💡 失敗後解鎖
+         isSubmittingSignOut = false; 
       });
     }
 
@@ -566,17 +583,13 @@
       btn.innerText = "提交中...";
       btn.disabled = true;
 
-      var name = localStorage.getItem('gym_username');
-      var email = localStorage.getItem('gym_email');
-
-      fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: "回報問題", name: name, email: email, issue: issueText }) })
+      fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: "回報問題", name: localStorage.getItem('gym_username'), email: localStorage.getItem('gym_email'), issue: issueText }) })
       .then(res => res.json())
       .then(() => {
         document.getElementById('input-issue').value = ''; 
         btn.innerText = "送出回報";
         btn.disabled = false;
-        navigateTo('main'); // 送出後自動回首頁
-        
+        navigateTo('main'); 
         showSuccess("回報已送出！感謝您的協助 🙌");
         setTimeout(() => { hideLoading(); }, 2000);
       })
@@ -587,18 +600,28 @@
       });
     }
 
-    // --- 圖表獲取與渲染 ---
+    // --- 📊 雙圖表技術：圖表獲取與渲染 ---
     function fetchAndRenderChart(dateStr) {
       const noDataHint = document.getElementById('no-timeline-data');
       if (myChart) { myChart.destroy(); myChart = null; }
+      if (axisChart) { axisChart.destroy(); axisChart = null; }
       noDataHint.classList.add('hidden');
+      
       const fetchToken = ++currentFetchToken;
 
       fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: "取得報表圖表", date: dateStr }) })
       .then(res => res.json())
-      .then(data => {
+      .then(response => {
         if (currentFetchToken !== fetchToken) return; 
-        renderChart(data);
+        
+        // 畫日曆上的藍色圈圈
+        if (response.activeDates) {
+          timelineActiveDates = response.activeDates;
+          timelineDatePicker.redraw();
+        }
+        
+        // 渲染圖表，注意我們現在傳入的是 response.data
+        renderChart(response.data || response); 
       })
       .catch(err => {
         if (currentFetchToken !== fetchToken) return; 
@@ -609,13 +632,23 @@
     function renderChart(data) {
       const names = Object.keys(data);
       const ctx = document.getElementById('timeChart').getContext('2d');
+      const axisCtx = document.getElementById('axisChart').getContext('2d');
       const noDataHint = document.getElementById('no-timeline-data');
       const chartContainer = document.getElementById('chart-container');
       const chartScrollArea = document.getElementById('chart-scroll-area');
 
-      if (names.length === 0) { noDataHint.classList.remove('hidden'); return; }
+      // 檢查是否沒資料
+      if (names.length === 0) { 
+        noDataHint.classList.remove('hidden'); 
+        document.getElementById('axisChart').classList.add('hidden');
+        return; 
+      } else {
+        noDataHint.classList.add('hidden'); 
+        document.getElementById('axisChart').classList.remove('hidden');
+      }
 
-      const requiredHeight = Math.max(names.length * 50 + 60, chartScrollArea.clientHeight);
+      // 動態設定主圖表高度 (留一點 margin 避免擠壓)
+      const requiredHeight = Math.max(names.length * 50 + 20, chartScrollArea.clientHeight);
       chartContainer.style.height = requiredHeight + 'px';
 
       const chartData = []; const bgColors = [];
@@ -635,6 +668,10 @@
         });
       });
 
+      // 💡 確保兩個圖表的 Y 軸寬度一致，X 軸才能完美對齊
+      const sharedYAxisWidth = 75;
+
+      // 1. 主要資料圖表 (隱藏 X 軸，放入可滾動區)
       myChart = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -645,34 +682,57 @@
           onClick: (e, activeElements, chart) => {
             if (activeElements.length > 0) {
               const index = activeElements[0].index; const record = chart.data.datasets[0].data[index]; const duration = record.duration; 
-              
               let htmlContent = `<div class="font-bold text-cyan-400 text-base mb-1">👤 ${record.y}</div><div>🛫 簽到：${record.startLabel}</div><div>🛬 簽退：${record.endLabel}</div><div>⏳ 時長：${Math.floor(duration/60)} 小時 ${duration%60} 分鐘</div>`;
               let theme = 'cyan';
-              if (record.isForcedCheckout) {
-                theme = 'yellow'; htmlContent += `<div class="text-amber-400 mt-2 font-bold flex items-center gap-1"><span class="material-icons text-sm">error</span> 狀況：忘記簽退，已由系統強制簽退</div>`;
-              } else if (duration > 120) {
-                theme = 'red'; htmlContent += `<div class="text-rose-400 mt-2 font-bold flex items-center gap-1"><span class="material-icons text-sm">report_problem</span> 狀況：超時或續借，請管理員確認</div>`;
-              }
+              if (record.isForcedCheckout) { theme = 'yellow'; htmlContent += `<div class="text-amber-400 mt-2 font-bold flex items-center gap-1"><span class="material-icons text-sm">error</span> 狀況：忘記簽退，強制簽退</div>`; } 
+              else if (duration > 120) { theme = 'red'; htmlContent += `<div class="text-rose-400 mt-2 font-bold flex items-center gap-1"><span class="material-icons text-sm">report_problem</span> 狀況：超時或續借，請確認</div>`; }
               showModal(htmlContent, theme);
             }
           },
-          layout: { padding: { left: 5, right: 15, top: 10, bottom: 10 } },
+          layout: { padding: { left: 5, right: 15, top: 10, bottom: 0 } }, // 底部不留白，與軸線貼合
+          scales: {
+            x: { 
+              display: false, // 💡 隱藏主畫面的 X 軸
+              min: 0, max: 1440 
+            },
+            y: { 
+              afterFit: function(scale) { scale.width = sharedYAxisWidth; }, // 綁定寬度
+              ticks: { color: '#E5E7EB', font: { size: 13, weight: 'bold' } }, 
+              grid: { display: false } 
+            }
+          },
+          plugins: { legend: { display: false }, tooltip: { enabled: false } }
+        }
+      });
+
+      // 2. 凍結的 X 軸圖表 (只有 X 軸文字，不顯示資料)
+      axisChart = new Chart(axisCtx, {
+        type: 'bar',
+        data: { datasets: [] },
+        options: {
+          indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+          layout: { padding: { left: 5, right: 15, top: 0, bottom: 5 } }, 
           scales: {
             x: { 
               min: 0, max: 1440, 
               ticks: { 
                 stepSize: 60, 
-                // 💡 在這裡將分鐘數拔除了，只留小時數
                 callback: value => { 
                   let h = Math.floor(value / 60); 
                   let displayHour = h > 24 ? h - 24 : h; 
                   return ("0" + displayHour).slice(-2); 
                 }, 
-                color: '#9CA3AF', font: { size: 9 }, maxRotation: 45 
+                color: '#9CA3AF', font: { size: 10 }, maxRotation: 0 // 文字不傾斜
               }, 
-              grid: { color: 'rgba(255, 255, 255, 0.05)' } 
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              border: { display: false }
             },
-            y: { ticks: { color: '#E5E7EB', font: { size: 13, weight: 'bold' } }, grid: { display: false } }
+            y: { 
+              afterFit: function(scale) { scale.width = sharedYAxisWidth; }, // 綁定寬度
+              grid: { display: false },
+              ticks: { display: false }, // 不顯示文字
+              border: { display: false }
+            }
           },
           plugins: { legend: { display: false }, tooltip: { enabled: false } }
         }
@@ -694,14 +754,12 @@
       .then(data => {
         if (currentHistoryToken !== fetchToken) return;
         
-        // 取得所有有回報的日期，並讓日曆重新畫圈圈
         if (data.activeDates) {
           historyActiveDates = data.activeDates;
           historyDatePicker.redraw();
         }
-
         currentReportsData = data.reports || [];
-        renderHistoryList(); // 呼叫渲染函式
+        renderHistoryList(); 
       })
       .catch(err => {
         if (currentHistoryToken !== fetchToken) return;
@@ -717,7 +775,6 @@
       
       container.innerHTML = ''; 
 
-      // 執行姓名過濾
       let filteredData = currentReportsData;
       if (searchTerm) {
         filteredData = currentReportsData.filter(r => r.name.toLowerCase().includes(searchTerm));
@@ -733,8 +790,6 @@
       filteredData.forEach(report => {
         const card = document.createElement('div');
         card.className = "bg-gray-800 border border-gray-700 p-3.5 rounded-xl shadow-sm flex flex-col gap-1.5";
-        
-        // 因為現在是混合不同日期的最新50筆，所以卡片要把日期也印出來
         const displayTime = report.date ? `${report.date} ${report.time}` : report.time;
 
         card.innerHTML = `
@@ -748,17 +803,9 @@
       });
     }
 
-    // 搜尋框觸發
-    function filterHistory() {
-      renderHistoryList();
-    }
+    function filterHistory() { renderHistoryList(); }
+    function clearHistoryDate() { if (historyDatePicker) historyDatePicker.clear(); }
 
-    // 清空日期/看最新50筆
-    function clearHistoryDate() {
-      if (historyDatePicker) historyDatePicker.clear(); // 清空會自動觸發 onChange 去撈取 "ALL"
-    }
-
-    // --- 輔助提示功能 ---
     function showLoading(txt) {
       document.getElementById('msg').innerText = txt;
       document.getElementById('msg').className = "mt-4 text-center font-bold text-sm text-cyan-400 bg-gray-900/50 p-2.5 rounded-xl border border-cyan-900";
