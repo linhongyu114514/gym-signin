@@ -202,7 +202,7 @@
       </div>
       
       <!-- 凍結在最下方的 X 軸圖表 -->
-      <div class="w-full h-[35px] shrink-0 pt-1 relative z-20 bg-gray-950 rounded-b-2xl">
+      <div class="w-full h-[45px] shrink-0 pt-1 relative z-20 bg-gray-950 rounded-b-2xl">
         <canvas id="axisChart"></canvas>
       </div>
     </div>
@@ -708,29 +708,36 @@
       // 2. 凍結的 X 軸圖表 (只有 X 軸文字，不顯示資料)
       axisChart = new Chart(axisCtx, {
         type: 'bar',
-        data: { datasets: [] },
+        data: { 
+          // 💡 必須給一個空的 Y 軸標籤與透明資料撐開 Chart.js 的渲染空間
+          labels: [''], 
+          datasets: [{ data: [], backgroundColor: 'transparent' }] 
+        },
         options: {
           indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-          layout: { padding: { left: 5, right: 15, top: 0, bottom: 5 } }, 
+          layout: { padding: { left: 5, right: 15, top: 0, bottom: 0 } }, 
           scales: {
             x: { 
+              display: true,
               min: 0, max: 1440, 
               ticks: { 
+                display: true,
                 stepSize: 60, 
                 callback: value => { 
                   let h = Math.floor(value / 60); 
                   let displayHour = h > 24 ? h - 24 : h; 
                   return ("0" + displayHour).slice(-2); 
                 }, 
-                color: '#9CA3AF', font: { size: 10 }, maxRotation: 0 // 文字不傾斜
+                color: '#9CA3AF', font: { size: 11, weight: 'bold' }, maxRotation: 0 
               }, 
               grid: { color: 'rgba(255, 255, 255, 0.05)' },
               border: { display: false }
             },
             y: { 
-              afterFit: function(scale) { scale.width = sharedYAxisWidth; }, // 綁定寬度
+              display: true,
+              afterFit: function(scale) { scale.width = sharedYAxisWidth; }, 
               grid: { display: false },
-              ticks: { display: false }, // 不顯示文字
+              ticks: { display: false }, // 不顯示 Y 軸文字
               border: { display: false }
             }
           },
