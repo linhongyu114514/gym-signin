@@ -4,9 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>運動科學實驗室簽到系統</title>
+  
+  <!-- CSS 框架與圖標 -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  
+  <!-- Chart.js 圖表套件 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Flatpickr 日曆套件與暗黑主題 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/dark.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
   <style>
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -18,7 +28,7 @@
   <!-- 側邊欄遮罩 -->
   <div id="sidebar-overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden transition-opacity" onclick="closeSidebar()"></div>
 
-  <!-- 左側滑出功能列 (Sidebar - 正規導航選單) -->
+  <!-- 左側滑出功能列 (Sidebar) -->
   <div id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-gray-900 border-r border-gray-800 transform -translate-x-full transition-transform duration-300 z-50 shadow-2xl flex flex-col">
     <div class="p-5 border-b border-gray-800 flex justify-between items-center bg-gray-950/50">
       <span class="text-cyan-400 font-bold text-lg flex items-center gap-2"><span class="material-icons">menu_open</span> 系統選單</span>
@@ -195,26 +205,26 @@
       <h2 class="text-sm font-bold text-amber-400 flex items-center shrink-0 bg-gray-800/50 border border-gray-700 px-3 py-1.5 rounded-lg shadow-inner gap-1.5">
         <span class="material-icons text-amber-500 text-sm">history_edu</span> 回報紀錄
       </h2>
-      <input type="date" id="history-date" class="bg-gray-950 text-gray-200 p-1.5 rounded-xl border border-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 shrink-0 w-[125px] text-center shadow-inner cursor-pointer">
+      <!-- 改用 text input 讓 Flatpickr 綁定 -->
+      <input type="text" id="history-date" placeholder="顯示最新50筆" class="bg-gray-950 text-gray-200 p-1.5 rounded-xl border border-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 shrink-0 w-[125px] text-center shadow-inner cursor-pointer" readonly>
     </div>
     
-    <div class="flex justify-center mb-5 w-full">
-      <div class="flex items-center justify-center bg-gray-950 border border-gray-800 rounded-xl shrink-0 p-1 shadow-inner">
-        <button onclick="changeHistoryDate(-1)" class="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-amber-400 hover:bg-gray-800 rounded-lg transition active:scale-90">
-          <span class="material-icons text-xl">chevron_left</span>
-        </button>
-        <span id="display-history-date" class="px-3 text-sm font-bold text-gray-200 min-w-[110px] text-center tracking-widest whitespace-nowrap"></span>
-        <button onclick="changeHistoryDate(1)" class="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-amber-400 hover:bg-gray-800 rounded-lg transition active:scale-90">
-          <span class="material-icons text-xl">chevron_right</span>
-        </button>
+    <!-- 搜尋框與重置按鈕 -->
+    <div class="mb-5 flex gap-2">
+      <div class="relative flex-1">
+        <span class="material-icons absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">search</span>
+        <input type="text" id="search-history-name" oninput="filterHistory()" placeholder="依姓名搜尋..." class="w-full bg-gray-950 text-white pl-9 pr-3 py-2 rounded-xl border border-gray-700 focus:outline-none focus:border-amber-500 text-sm shadow-inner transition-all">
       </div>
+      <button onclick="clearHistoryDate()" class="bg-gray-800 text-amber-400 border border-gray-700 px-3 rounded-xl text-sm font-bold hover:bg-gray-700 transition active:scale-95 whitespace-nowrap">
+        看最新50筆
+      </button>
     </div>
 
     <div class="relative rounded-2xl border border-gray-800 bg-gray-950 shadow-inner p-3 min-h-[300px]">
       <div id="no-history-data" class="hidden absolute inset-0 flex items-center justify-center text-gray-400 text-sm font-bold bg-gray-950/90 rounded-2xl z-10 pointer-events-none backdrop-blur-sm">
         <div class="flex flex-col items-center gap-2">
           <span class="material-icons text-gray-500 text-3xl">check_circle_outline</span>
-          <span>該日期沒有任何問題回報</span>
+          <span>沒有符合條件的紀錄</span>
         </div>
       </div>
       <div id="history-list-container" class="space-y-3 h-[400px] landscape:h-[260px] overflow-y-auto hide-scrollbar scroll-smooth relative touch-pan-y">
@@ -248,6 +258,11 @@
     let isBubbleProcessing = false;
     let isSubmittingSignOut = false;
 
+    // 💡 歷史紀錄相關全域變數
+    let currentReportsData = []; 
+    let historyActiveDates = []; 
+    let historyDatePicker = null; 
+
     // --- 側邊欄與頁面導航邏輯 ---
     function openSidebar() {
       document.getElementById('sidebar').classList.remove('-translate-x-full');
@@ -271,7 +286,9 @@
       if (pageName === 'timeline') {
         fetchAndRenderChart(document.getElementById('timeline-date').value);
       } else if (pageName === 'history') {
-        fetchAndRenderHistory(document.getElementById('history-date').value);
+        // 切換進歷史頁面時，清空搜尋與日曆，觸發看最新50筆
+        document.getElementById('search-history-name').value = '';
+        if (historyDatePicker) historyDatePicker.clear(); 
       }
     }
 
@@ -296,22 +313,31 @@
       const today = new Date();
       const todayStr = today.getFullYear() + "-" + ("0" + (today.getMonth() + 1)).slice(-2) + "-" + ("0" + today.getDate()).slice(-2);
       
-      // 同步兩個日曆的預設日期為今天
+      // 綁定圖表日曆預設日期與變更事件
       document.getElementById('timeline-date').value = todayStr;
       document.getElementById('display-timeline-date').innerText = todayStr;
-      document.getElementById('history-date').value = todayStr;
-      document.getElementById('display-history-date').innerText = todayStr;
       
-      // 綁定圖表日曆變更事件
       document.getElementById('timeline-date').addEventListener('change', function(e) { 
         document.getElementById('display-timeline-date').innerText = e.target.value;
         fetchAndRenderChart(e.target.value); 
       });
 
-      // 綁定歷史紀錄日曆變更事件
-      document.getElementById('history-date').addEventListener('change', function(e) { 
-        document.getElementById('display-history-date').innerText = e.target.value;
-        fetchAndRenderHistory(e.target.value); 
+      // 💡 初始化 Flatpickr 客製化日曆 (歷史紀錄用)
+      historyDatePicker = flatpickr("#history-date", {
+        disableMobile: "true", // 強制手機端使用 Flatpickr 介面，以支援 CSS 上色
+        dateFormat: "Y-m-d",
+        onChange: function(selectedDates, dateStr, instance) {
+          document.getElementById('search-history-name').value = ''; // 切換日期時清空搜尋框
+          fetchAndRenderHistory(dateStr || "ALL");
+        },
+        onDayCreate: function(dObj, dStr, fp, dayElem) {
+          // 如果該日期有紀錄，就在日期數字底下加上淡藍色圈圈
+          let dateString = fp.formatDate(dayElem.dateObj, "Y-m-d");
+          if (historyActiveDates.includes(dateString)) {
+            dayElem.style.position = 'relative';
+            dayElem.innerHTML += '<span class="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 bg-cyan-400 rounded-full"></span>';
+          }
+        }
       });
 
       // 角色選擇按鈕樣式切換
@@ -345,16 +371,6 @@
       dateInput.value = newDateStr;
       document.getElementById('display-timeline-date').innerText = newDateStr;
       fetchAndRenderChart(newDateStr);
-    }
-
-    // --- 歷史紀錄日期箭頭切換 ---
-    function changeHistoryDate(offset) {
-      const dateInput = document.getElementById('history-date');
-      if (!dateInput.value) return;
-      let newDateStr = calculateNewDate(dateInput.value, offset);
-      dateInput.value = newDateStr;
-      document.getElementById('display-history-date').innerText = newDateStr;
-      fetchAndRenderHistory(newDateStr);
     }
 
     function calculateNewDate(dateStr, offset) {
@@ -642,7 +658,20 @@
           },
           layout: { padding: { left: 5, right: 15, top: 10, bottom: 10 } },
           scales: {
-            x: { min: 0, max: 1440, ticks: { stepSize: 60, callback: value => { let h = Math.floor(value / 60); let displayHour = h > 24 ? h - 24 : h; return ("0" + displayHour).slice(-2) + ":00"; }, color: '#9CA3AF', font: { size: 9 }, maxRotation: 45 }, grid: { color: 'rgba(255, 255, 255, 0.05)' } },
+            x: { 
+              min: 0, max: 1440, 
+              ticks: { 
+                stepSize: 60, 
+                // 💡 在這裡將分鐘數拔除了，只留小時數
+                callback: value => { 
+                  let h = Math.floor(value / 60); 
+                  let displayHour = h > 24 ? h - 24 : h; 
+                  return ("0" + displayHour).slice(-2); 
+                }, 
+                color: '#9CA3AF', font: { size: 9 }, maxRotation: 45 
+              }, 
+              grid: { color: 'rgba(255, 255, 255, 0.05)' } 
+            },
             y: { ticks: { color: '#E5E7EB', font: { size: 13, weight: 'bold' } }, grid: { display: false } }
           },
           plugins: { legend: { display: false }, tooltip: { enabled: false } }
@@ -650,7 +679,7 @@
       });
     }
 
-    // --- 歷史紀錄獲取與渲染 ---
+    // --- 歷史紀錄獲取、過濾與渲染 ---
     function fetchAndRenderHistory(dateStr) {
       const container = document.getElementById('history-list-container');
       const noDataHint = document.getElementById('no-history-data');
@@ -665,25 +694,14 @@
       .then(data => {
         if (currentHistoryToken !== fetchToken) return;
         
-        container.innerHTML = ''; // 清空 loading
-        
-        if (!data.reports || data.reports.length === 0) {
-          noDataHint.classList.remove('hidden');
-          return;
+        // 取得所有有回報的日期，並讓日曆重新畫圈圈
+        if (data.activeDates) {
+          historyActiveDates = data.activeDates;
+          historyDatePicker.redraw();
         }
 
-        data.reports.forEach(report => {
-          const card = document.createElement('div');
-          card.className = "bg-gray-800 border border-gray-700 p-3.5 rounded-xl shadow-sm flex flex-col gap-1.5";
-          card.innerHTML = `
-            <div class="flex justify-between items-center border-b border-gray-700 pb-2">
-              <span class="text-amber-400 font-bold text-sm flex items-center gap-1"><span class="material-icons text-sm">person</span> ${report.name}</span>
-              <span class="text-gray-400 text-xs flex items-center gap-1"><span class="material-icons text-xs">schedule</span> ${report.time}</span>
-            </div>
-            <p class="text-gray-200 text-sm whitespace-pre-wrap leading-relaxed mt-1">${report.issue}</p>
-          `;
-          container.appendChild(card);
-        });
+        currentReportsData = data.reports || [];
+        renderHistoryList(); // 呼叫渲染函式
       })
       .catch(err => {
         if (currentHistoryToken !== fetchToken) return;
@@ -692,6 +710,55 @@
       });
     }
 
+    function renderHistoryList() {
+      const container = document.getElementById('history-list-container');
+      const noDataHint = document.getElementById('no-history-data');
+      const searchTerm = document.getElementById('search-history-name').value.toLowerCase().trim();
+      
+      container.innerHTML = ''; 
+
+      // 執行姓名過濾
+      let filteredData = currentReportsData;
+      if (searchTerm) {
+        filteredData = currentReportsData.filter(r => r.name.toLowerCase().includes(searchTerm));
+      }
+
+      if (filteredData.length === 0) {
+        noDataHint.classList.remove('hidden');
+        return;
+      } else {
+        noDataHint.classList.add('hidden');
+      }
+
+      filteredData.forEach(report => {
+        const card = document.createElement('div');
+        card.className = "bg-gray-800 border border-gray-700 p-3.5 rounded-xl shadow-sm flex flex-col gap-1.5";
+        
+        // 因為現在是混合不同日期的最新50筆，所以卡片要把日期也印出來
+        const displayTime = report.date ? `${report.date} ${report.time}` : report.time;
+
+        card.innerHTML = `
+          <div class="flex justify-between items-center border-b border-gray-700 pb-2">
+            <span class="text-amber-400 font-bold text-sm flex items-center gap-1"><span class="material-icons text-sm">person</span> ${report.name}</span>
+            <span class="text-gray-400 text-xs flex items-center gap-1"><span class="material-icons text-xs">schedule</span> ${displayTime}</span>
+          </div>
+          <p class="text-gray-200 text-sm whitespace-pre-wrap leading-relaxed mt-1">${report.issue}</p>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // 搜尋框觸發
+    function filterHistory() {
+      renderHistoryList();
+    }
+
+    // 清空日期/看最新50筆
+    function clearHistoryDate() {
+      if (historyDatePicker) historyDatePicker.clear(); // 清空會自動觸發 onChange 去撈取 "ALL"
+    }
+
+    // --- 輔助提示功能 ---
     function showLoading(txt) {
       document.getElementById('msg').innerText = txt;
       document.getElementById('msg').className = "mt-4 text-center font-bold text-sm text-cyan-400 bg-gray-900/50 p-2.5 rounded-xl border border-cyan-900";
