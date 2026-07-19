@@ -5,14 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>運動科學實驗室簽到系統</title>
   
-  <!-- CSS 框架與圖標 -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   
-  <!-- Chart.js 圖表套件 -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   
-  <!-- Flatpickr 日曆套件與暗黑主題 -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/dark.css">
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -64,7 +61,6 @@
 
   <!-- ================= 頁面 1：主頁 ================= -->
   <div id="page-main" class="w-full max-w-sm bg-gray-900 border border-gray-800 p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] relative mt-4">
-    <!-- 帳號綁定區 -->
     <div id="step-bind" class="hidden">
       <h1 class="text-2xl font-bold text-center text-cyan-400 mb-2 flex items-center justify-center gap-2">
         <span class="material-icons text-cyan-500">link</span> 帳號綁定
@@ -83,7 +79,6 @@
       </div>
     </div>
 
-    <!-- 簽到/簽退大按鈕區 -->
     <div id="step-main" class="hidden flex flex-col items-center">
       <p class="text-lg text-gray-300 mb-6 bg-gray-800/60 border border-gray-700 px-5 py-2 rounded-2xl shadow-inner">哈囉，<span id="display-name" class="font-bold text-cyan-400"></span> 👋</p>
       
@@ -100,7 +95,6 @@
       </div>
     </div>
 
-    <!-- 簽退設備檢查區 -->
     <div id="step-device" class="hidden">
       <h2 class="text-xl font-bold text-rose-400 mb-4 text-center flex items-center justify-center gap-1 bg-rose-950/20 py-2 rounded-xl border border-rose-900/50">
         <span class="material-icons text-rose-500">warning_amber</span> 簽退前確認
@@ -146,7 +140,6 @@
       <button onclick="submitSignOut('關閉設備')" class="w-full bg-gradient-to-r from-red-600 to-rose-600 text-white p-3.5 rounded-xl font-bold text-lg hover:from-red-500 hover:to-rose-500 transition-all shadow-[0_0_15px_rgba(225,29,72,0.3)] active:scale-95">確認簽退並離開</button>
     </div>
 
-    <!-- 系統訊息框 -->
     <div id="msg" class="hidden mt-4 text-center font-bold text-sm p-2.5 rounded-xl transition-all z-50 relative"></div>
   </div>
 
@@ -184,7 +177,6 @@
       </div>
     </div>
     
-    <!-- 凍結 X 軸的圖表區結構 -->
     <div class="relative flex flex-col rounded-2xl border border-gray-800 bg-gray-950 shadow-inner p-2">
       <div id="no-timeline-data" class="hidden absolute inset-0 flex items-center justify-center text-gray-400 text-sm font-bold bg-gray-950/90 rounded-2xl z-10 pointer-events-none backdrop-blur-sm">
         <div class="flex flex-col items-center gap-2">
@@ -193,39 +185,52 @@
         </div>
       </div>
       
-      <!-- 主要內容滾動區 -->
       <div id="chart-scroll-area" class="h-[360px] landscape:h-[220px] w-full overflow-y-auto overflow-x-hidden hide-scrollbar scroll-smooth touch-pan-y z-0">
         <div id="chart-container" class="relative w-full" style="height: 100%;">
           <canvas id="timeChart"></canvas>
         </div>
       </div>
       
-      <!-- 凍結在最下方的 X 軸與預約圖表 -->
       <div class="w-full h-[60px] shrink-0 pt-1 relative z-20 bg-gray-950 border-t border-gray-800 rounded-b-2xl">
         <canvas id="axisChart"></canvas>
       </div>
     </div>
   </div>
 
-  <!-- ================= 頁面 4：歷史回報紀錄清單 ================= -->
+  <!-- ================= 頁面 4：歷史回報紀錄清單 (全新排版) ================= -->
   <div id="page-history" class="hidden w-full max-w-sm landscape:max-w-3xl md:max-w-xl bg-gray-900 p-5 rounded-3xl border border-gray-800 mt-4 shadow-[0_8px_30px_rgb(0,0,0,0.5)] transition-all duration-300">
-    <div class="flex justify-between items-center mb-4">
-      <h2 class="text-sm font-bold text-amber-400 flex items-center shrink-0 bg-gray-800/50 border border-gray-700 px-3 py-1.5 rounded-lg shadow-inner gap-1.5">
-        <span class="material-icons text-amber-500 text-sm">history_edu</span> 回報紀錄
-      </h2>
-      <input type="text" id="history-date" placeholder="顯示最新50筆" class="bg-gray-950 text-gray-200 p-1.5 rounded-xl border border-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 shrink-0 w-[125px] text-center shadow-inner cursor-pointer" readonly>
-    </div>
-    
-    <div class="mb-5 flex gap-2">
-      <div class="relative flex-1">
-        <span class="material-icons absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">search</span>
-        <input type="text" id="search-history-name" oninput="filterHistory()" placeholder="依姓名搜尋..." class="w-full bg-gray-950 text-white pl-9 pr-3 py-2 rounded-xl border border-gray-700 focus:outline-none focus:border-amber-500 text-sm shadow-inner transition-all">
+    <h2 class="text-sm font-bold text-amber-400 flex items-center justify-center w-full bg-gray-800/50 border border-gray-700 px-3 py-2 rounded-lg shadow-inner gap-1.5 mb-4">
+      <span class="material-icons text-amber-500 text-base">history_edu</span> 歷史回報紀錄
+    </h2>
+
+    <!-- 💡 上下並列的搜尋區塊 -->
+    <div class="flex flex-col gap-3 mb-5">
+      <!-- 上：日期搜尋 -->
+      <div class="flex items-center gap-2">
+        <div class="bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 flex items-center justify-center">
+          <span class="material-icons text-gray-400 text-sm">calendar_month</span>
+        </div>
+        <input type="text" id="history-date" placeholder="依日期搜尋 (點擊日曆)..." class="flex-1 bg-gray-950 text-gray-200 p-2 rounded-xl border border-gray-700 text-sm focus:outline-none focus:border-amber-500 shadow-inner cursor-pointer" readonly>
       </div>
-      <button onclick="clearHistoryDate()" class="bg-gray-800 text-amber-400 border border-gray-700 px-3 rounded-xl text-sm font-bold hover:bg-gray-700 transition active:scale-95 whitespace-nowrap">
-        看最新50筆
-      </button>
+
+      <!-- 下：姓名搜尋與重置按鈕 -->
+      <div class="flex items-center gap-2">
+        <div class="relative flex-1">
+          <span class="material-icons absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm">person_search</span>
+          <input type="text" id="search-history-name" placeholder="依姓名搜尋..." class="w-full bg-gray-950 text-white pl-9 pr-3 py-2 rounded-xl border border-gray-700 focus:outline-none focus:border-amber-500 text-sm shadow-inner transition-all">
+        </div>
+        <!-- 這個按鈕負責發送姓名搜尋的 API 請求 -->
+        <button onclick="searchHistoryByName()" class="bg-amber-600/90 text-white border border-amber-500 px-4 py-2 rounded-xl text-sm font-bold hover:bg-amber-500 transition active:scale-95 whitespace-nowrap shadow-md">
+          搜尋
+        </button>
+        <!-- 這個按鈕負責清空所有條件，載入最新50筆 -->
+        <button onclick="clearHistoryDate()" class="bg-gray-800 text-gray-300 border border-gray-700 px-3 py-2 rounded-xl hover:bg-gray-700 transition active:scale-95 flex items-center justify-center" title="重置為最新50筆">
+          <span class="material-icons text-sm">refresh</span>
+        </button>
+      </div>
     </div>
 
+    <!-- 列表顯示區 -->
     <div class="relative rounded-2xl border border-gray-800 bg-gray-950 shadow-inner p-3 min-h-[300px]">
       <div id="no-history-data" class="hidden absolute inset-0 flex items-center justify-center text-gray-400 text-sm font-bold bg-gray-950/90 rounded-2xl z-10 pointer-events-none backdrop-blur-sm">
         <div class="flex flex-col items-center gap-2">
@@ -334,9 +339,12 @@
       historyDatePicker = flatpickr("#history-date", {
         disableMobile: true,
         dateFormat: "Y-m-d",
+        // 💡 模式 2：點擊日曆時，清空姓名搜尋框，並發送 API (date = 該日期, searchName = "")
         onChange: function(selectedDates, dateStr, instance) {
-          document.getElementById('search-history-name').value = ''; 
-          fetchAndRenderHistory(dateStr || "ALL");
+          if (dateStr) {
+            document.getElementById('search-history-name').value = ''; 
+            fetchHistoryData(dateStr, "");
+          }
         },
         onDayCreate: function(dObj, dStr, fp, dayElem) {
           let dateString = fp.formatDate(dayElem.dateObj, "Y-m-d");
@@ -587,7 +595,7 @@
       });
     }
 
-    // --- 📊 雙圖表技術：圖表與月曆獲取與渲染 ---
+    // --- 📊 雙圖表技術 ---
     function fetchAndRenderChart(dateStr) {
       const noDataHint = document.getElementById('no-timeline-data');
       if (myChart) { myChart.destroy(); myChart = null; }
@@ -727,9 +735,7 @@
                 }, 
                 color: '#9CA3AF', font: { size: 11, weight: 'bold' }, maxRotation: 0 
               }, 
-              // 💡 這裡就是關閉垂直格線的設定 
-              grid: { display: false }, 
-              border: { display: false }
+              grid: { display: false }, border: { display: false }
             },
             y: { 
               display: true, 
@@ -744,7 +750,8 @@
       });
     }
 
-    function fetchAndRenderHistory(dateStr) {
+    // --- 💡 歷史紀錄獲取 API (整合日期與姓名) ---
+    function fetchHistoryData(dateStr, searchName) {
       const container = document.getElementById('history-list-container');
       const noDataHint = document.getElementById('no-history-data');
       
@@ -753,15 +760,17 @@
       
       const fetchToken = ++currentHistoryToken;
 
-      fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: "取得回報紀錄", date: dateStr }) })
+      fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: "取得回報紀錄", date: dateStr, searchName: searchName }) })
       .then(res => res.json())
       .then(data => {
         if (currentHistoryToken !== fetchToken) return;
         
-        if (data.activeDates) {
+        // 只有在 date 模式 (或 ALL) 下才更新日曆，如果是在搜尋姓名，不要破壞日曆的圈圈
+        if (data.activeDates && !searchName) {
           historyActiveDates = data.activeDates;
-          historyDatePicker.redraw();
+          if (historyDatePicker) historyDatePicker.redraw();
         }
+        
         currentReportsData = data.reports || [];
         renderHistoryList(); 
       })
@@ -772,18 +781,73 @@
       });
     }
 
+    // --- 💡 模式 1：點擊姓名旁邊的搜尋按鈕 (發送 API 請求給後端) ---
+    function searchHistoryByName() {
+      const nameInput = document.getElementById('search-history-name').value.trim();
+      if (!nameInput) {
+        showModal('<div class="text-amber-400 font-bold text-center">請輸入要搜尋的姓名！</div>', 'yellow'); 
+        return;
+      }
+      
+      // 搜尋姓名時，清空日期的 Input
+      if (historyDatePicker) {
+        historyDatePicker.clear(false); // false 代表不要觸發 onChange 事件
+      }
+      
+      fetchHistoryData("ALL", nameInput);
+    }
+
+    // --- 💡 模式 3：點擊重置按鈕 (看最新50筆) ---
+    function clearHistoryDate() { 
+      document.getElementById('search-history-name').value = ''; 
+      if (historyDatePicker) {
+        historyDatePicker.clear(false); 
+      }
+      fetchHistoryData("ALL", "");
+    }
+
+    // --- 單純渲染畫面 (不作過濾了，因為過濾已經交給後端了) ---
     function renderHistoryList() {
       const container = document.getElementById('history-list-container');
       const noDataHint = document.getElementById('no-history-data');
-      const searchTerm = document.getElementById('search-history-name').value.toLowerCase().trim();
       
       container.innerHTML = ''; 
 
+      if (currentReportsData.length === 0) {
+        noDataHint.classList.remove('hidden');
+        return;
+      } else {
+        noDataHint.classList.add('hidden');
+      }
+
+      currentReportsData.forEach(report => {
+        const card = document.createElement('div');
+        card.className = "bg-gray-800 border border-gray-700 p-3.5 rounded-xl shadow-sm flex flex-col gap-1.5";
+        const displayTime = report.date ? `${report.date} ${report.time}` : report.time;
+
+        card.innerHTML = `
+          <div class="flex justify-between items-center border-b border-gray-700 pb-2">
+            <span class="text-amber-400 font-bold text-sm flex items-center gap-1"><span class="material-icons text-sm">person</span> ${report.name}</span>
+            <span class="text-gray-400 text-xs flex items-center gap-1"><span class="material-icons text-xs">schedule</span> ${displayTime}</span>
+          </div>
+          <p class="text-gray-200 text-sm whitespace-pre-wrap leading-relaxed mt-1">${report.issue}</p>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // (給 oninput 用的快速過濾，如果使用者想在當下已經撈出來的50筆內再自己濾的話)
+    function filterHistory() { 
+      const container = document.getElementById('history-list-container');
+      const searchTerm = document.getElementById('search-history-name').value.toLowerCase().trim();
+      const noDataHint = document.getElementById('no-history-data');
+      
       let filteredData = currentReportsData;
       if (searchTerm) {
         filteredData = currentReportsData.filter(r => r.name.toLowerCase().includes(searchTerm));
       }
 
+      container.innerHTML = ''; 
       if (filteredData.length === 0) {
         noDataHint.classList.remove('hidden');
         return;
@@ -806,9 +870,6 @@
         container.appendChild(card);
       });
     }
-
-    function filterHistory() { renderHistoryList(); }
-    function clearHistoryDate() { if (historyDatePicker) historyDatePicker.clear(); }
 
     function showLoading(txt) {
       document.getElementById('msg').innerText = txt;
