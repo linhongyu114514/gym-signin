@@ -692,28 +692,67 @@
         });
       });
 
+      // 💡 優化版的客製化 Plugin：智慧決定預約文字的顯示位置
       const calendarTextPlugin = {
         id: 'calendarText',
         afterDatasetsDraw(chart, args, pluginOptions) {
-          const { ctx, data } = chart;
+          const { ctx, data, chartArea } = chart;
           ctx.save();
-          ctx.font = 'bold 11px sans-serif';
-          ctx.fillStyle = '#FFFFFF'; 
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-
+          
           const meta = chart.getDatasetMeta(0);
           if (!meta.data) return;
 
           meta.data.forEach((bar, index) => {
             const record = data.datasets[0].data[index];
-            const center = (bar.base + bar.x) / 2; 
+            if (!record.title) return;
             
-            ctx.beginPath();
-            ctx.rect(bar.base, bar.y - bar.height / 2, bar.x - bar.base, bar.height);
-            ctx.clip();
-            ctx.fillText(record.title, center, bar.y);
+            // 色塊的寬度 (代表時間長度) 與起點
+            const barWidth = bar.x - bar.base;
+            const barStart = bar.base;
+            const barY = bar.y;
+            
+            // 測量文字實際寬度
+            ctx.font = 'bold 12px sans-serif';
+            const textMetrics = ctx.measureText(record.title);
+            const textWidth = textMetrics.width;
+
+            // 💡 判斷邏輯：如果色塊寬度比文字寬度大至少 20px，就放中間；否則放右邊
+            if (barWidth > textWidth + 20) {
+              // 空間夠大：文字置中放在色塊內，顏色用白色
+              ctx.fillStyle = '#FFFFFF';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              
+              // 增加輕微文字陰影，讓白色文字在紫色背景上更立體
+              ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+              ctx.shadowBlur = 3;
+              ctx.shadowOffsetX = 1;
+              ctx.shadowOffsetY = 1;
+              
+              const center = barStart + (barWidth / 2);
+              ctx.fillText(record.title, center, barY);
+            } else {
+              // 空間不夠：文字放在色塊的「右側」外面，顏色改用紫色配淺灰色，並取消陰影
+              ctx.shadowColor = 'transparent';
+              ctx.fillStyle = '#A78BFA'; // 淺紫色，對比暗色背景
+              ctx.textAlign = 'left';
+              ctx.textBaseline = 'middle';
+              
+              // 確保文字不會超出整個畫布右邊界
+              let textX = bar.x + 8; // 距離色塊右邊緣 8px
+              if (textX + textWidth > chartArea.right) {
+                  // 如果放右邊會被切掉，改為放在色塊「左側」外面
+                  ctx.textAlign = 'right';
+                  textX = barStart - 8;
+              }
+              
+              ctx.fillText(record.title, textX, barY);
+            }
+            
+            // 重置陰影設定，以免影響下一個文字
+            ctx.shadowColor = 'transparent';
           });
+          
           ctx.restore();
         }
       };
