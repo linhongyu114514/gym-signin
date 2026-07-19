@@ -197,14 +197,14 @@
     </div>
   </div>
 
-  <!-- ================= 頁面 4：歷史回報紀錄清單 (精簡並支援獨立按鈕) ================= -->
+  <!-- ================= 頁面 4：歷史回報紀錄清單 ================= -->
   <div id="page-history" class="hidden w-full max-w-sm landscape:max-w-3xl md:max-w-xl bg-gray-900 p-5 rounded-3xl border border-gray-800 mt-4 shadow-[0_8px_30px_rgb(0,0,0,0.5)] transition-all duration-300">
     <h2 class="text-sm font-bold text-amber-400 flex items-center justify-center w-full bg-gray-800/50 border border-gray-700 px-3 py-2 rounded-lg shadow-inner gap-1.5 mb-4">
       <span class="material-icons text-amber-500 text-base">history_edu</span> 歷史回報紀錄
     </h2>
 
     <div class="flex flex-col gap-3 mb-5">
-      <!-- 上：日期搜尋 (拿掉日曆 Icon，直接點擊 Input 選擇，旁邊放搜尋鈕) -->
+      <!-- 上：日期搜尋 -->
       <div class="flex items-center gap-2">
         <input type="text" id="history-date" placeholder="依日期搜尋 (點擊選擇)..." class="flex-1 bg-gray-950 text-gray-200 p-2 rounded-xl border border-gray-700 text-sm focus:outline-none focus:border-cyan-500 shadow-inner cursor-pointer" readonly>
         <button onclick="searchHistoryByDate()" class="bg-cyan-600/90 text-white border border-cyan-500 w-[60px] py-2 rounded-xl text-sm font-bold hover:bg-cyan-500 transition active:scale-95 shadow-md flex items-center justify-center">
@@ -212,12 +212,9 @@
         </button>
       </div>
 
-      <!-- 下：姓名搜尋 (拿掉重整鍵，保留放大鏡按鈕) -->
+      <!-- 下：姓名搜尋 (去除了小圖示) -->
       <div class="flex items-center gap-2">
-        <div class="relative flex-1">
-          <span class="material-icons absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm">person_search</span>
-          <input type="text" id="search-history-name" placeholder="依姓名搜尋..." class="w-full bg-gray-950 text-white pl-9 pr-3 py-2 rounded-xl border border-gray-700 focus:outline-none focus:border-amber-500 text-sm shadow-inner transition-all">
-        </div>
+        <input type="text" id="search-history-name" placeholder="依姓名搜尋 (點擊輸入)..." class="flex-1 bg-gray-950 text-white p-2 rounded-xl border border-gray-700 focus:outline-none focus:border-amber-500 text-sm shadow-inner transition-all">
         <button onclick="searchHistoryByName()" class="bg-amber-600/90 text-white border border-amber-500 w-[60px] py-2 rounded-xl text-sm font-bold hover:bg-amber-500 transition active:scale-95 shadow-md flex items-center justify-center">
           <span class="material-icons text-base">search</span>
         </button>
