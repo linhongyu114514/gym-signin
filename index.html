@@ -177,6 +177,11 @@
       </div>
     </div>
     
+    <div class="flex items-center justify-end gap-2 mb-2 pr-1 text-[11px] text-gray-400">
+      <span class="inline-block" style="width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:13px solid rgb(34 211 238);"></span>
+      <span>未滿 30 分鐘的短時間使用紀錄</span>
+    </div>
+
     <div class="relative flex flex-col rounded-2xl border border-gray-800 bg-gray-950 shadow-inner p-2">
       <div id="no-timeline-data" class="hidden absolute inset-0 flex items-center justify-center text-gray-400 text-sm font-bold bg-gray-950/90 rounded-2xl z-10 pointer-events-none backdrop-blur-sm">
         <div class="flex flex-col items-center gap-2">
@@ -263,6 +268,151 @@
     let historyDatePicker = null; 
     let timelineActiveDates = []; 
     let timelineDatePicker = null; 
+
+    const SHORT_RECORD_LIMIT_MINUTES = 30;
+    const SHORT_MARKER_SIZE = 10;
+    const SHORT_MARKER_HIT_RADIUS = 20;
+    const SHORT_MARKER_MERGE_DISTANCE_PX = 28;
+
+    function formatUsageDuration(duration) {
+      const safeDuration = Math.max(0, Math.round(duration));
+      return `${Math.floor(safeDuration / 60)} 小時 ${safeDuration % 60} 分鐘`;
+    }
+
+    function showUsageRecordModal(record) {
+      let htmlContent = `<div class="font-bold text-cyan-400 text-base mb-1">👤 ${record.y}</div><div>🛫 簽到：${record.startLabel}</div><div>🛬 簽退：${record.endLabel}</div><div>⏳ 時長：${formatUsageDuration(record.duration)}</div>`;
+      let theme = 'cyan';
+
+      if (record.isForcedCheckout) {
+        theme = 'yellow';
+        htmlContent += `<div class="text-amber-400 mt-2 font-bold flex items-center gap-1"><span class="material-icons text-sm">error</span> 狀況：忘記簽退，強制簽退</div>`;
+      } else if (record.duration > 120) {
+        theme = 'red';
+        htmlContent += `<div class="text-rose-400 mt-2 font-bold flex items-center gap-1"><span class="material-icons text-sm">report_problem</span> 狀況：超時或續借，請確認</div>`;
+      } else if (record.isOngoing) {
+        htmlContent += `<div class="text-emerald-400 mt-2 font-bold flex items-center gap-1"><span class="material-icons text-sm">schedule</span> 狀況：目前仍在使用中</div>`;
+      }
+
+      showModal(htmlContent, theme);
+    }
+
+    function showShortRecordGroupModal(group) {
+      const records = group.records || [];
+      let htmlContent = `<div class="font-bold text-cyan-400 text-base mb-2">👤 ${group.name}</div>`;
+
+      if (records.length > 1) {
+        htmlContent += `<div class="text-gray-400 mb-2">此三角形包含 ${records.length} 筆位置重疊的短時間紀錄：</div>`;
+      } else {
+        htmlContent += `<div class="text-cyan-300 mb-2 font-medium">短時間使用紀錄（未滿 30 分鐘）</div>`;
+      }
+
+      records.forEach((record, index) => {
+        const topBorder = index === 0 ? '' : ' border-t border-gray-700 mt-2 pt-2';
+        htmlContent += `<div class="${topBorder}"><div>🛫 簽到：${record.startLabel}</div><div>🛬 簽退：${record.endLabel}</div><div>⏳ 時長：${formatUsageDuration(record.duration)}</div></div>`;
+      });
+
+      showModal(htmlContent, 'cyan');
+    }
+
+    function buildShortRecordGroups(chart) {
+      const records = chart.$shortEventRecords || [];
+      const xScale = chart.scales.x;
+      const yScale = chart.scales.y;
+      const labels = chart.data.labels || [];
+      const recordsByName = {};
+      const groups = [];
+
+      records.forEach(record => {
+        if (!recordsByName[record.y]) recordsByName[record.y] = [];
+        recordsByName[record.y].push(record);
+      });
+
+      Object.keys(recordsByName).forEach(name => {
+        const sortedRecords = recordsByName[name].slice().sort((a, b) => a.midpoint - b.midpoint);
+        let currentGroup = null;
+
+        sortedRecords.forEach(record => {
+          const recordPixel = xScale.getPixelForValue(record.midpoint);
+
+          if (!currentGroup || recordPixel - currentGroup.lastPixel > SHORT_MARKER_MERGE_DISTANCE_PX) {
+            currentGroup = {
+              name: name,
+              records: [record],
+              midpointTotal: record.midpoint,
+              lastPixel: recordPixel
+            };
+            groups.push(currentGroup);
+          } else {
+            currentGroup.records.push(record);
+            currentGroup.midpointTotal += record.midpoint;
+            currentGroup.lastPixel = recordPixel;
+          }
+        });
+      });
+
+      return groups.map(group => {
+        const averageMidpoint = group.midpointTotal / group.records.length;
+        const labelIndex = labels.indexOf(group.name);
+        const unclampedX = xScale.getPixelForValue(averageMidpoint);
+        const x = Math.max(chart.chartArea.left + SHORT_MARKER_SIZE + 2, Math.min(chart.chartArea.right - SHORT_MARKER_SIZE - 2, unclampedX));
+        const y = yScale.getPixelForValue(labelIndex);
+
+        return {
+          name: group.name,
+          records: group.records,
+          x: x,
+          y: y,
+          hitRadius: SHORT_MARKER_HIT_RADIUS
+        };
+      });
+    }
+
+    const shortRecordMarkerPlugin = {
+      id: 'shortRecordMarkerPlugin',
+      afterDatasetsDraw(chart) {
+        const groups = buildShortRecordGroups(chart);
+        const ctx = chart.ctx;
+
+        chart.$shortEventHitAreas = groups;
+
+        ctx.save();
+        groups.forEach(group => {
+          const x = group.x;
+          const y = group.y;
+          const size = SHORT_MARKER_SIZE;
+
+          ctx.beginPath();
+          ctx.moveTo(x, y - size);
+          ctx.lineTo(x + size, y + size * 0.85);
+          ctx.lineTo(x - size, y + size * 0.85);
+          ctx.closePath();
+          ctx.fillStyle = 'rgba(34, 211, 238, 0.95)';
+          ctx.strokeStyle = '#ecfeff';
+          ctx.lineWidth = 1.5;
+          ctx.shadowColor = 'rgba(34, 211, 238, 0.45)';
+          ctx.shadowBlur = 6;
+          ctx.fill();
+          ctx.shadowBlur = 0;
+          ctx.stroke();
+        });
+        ctx.restore();
+      },
+      afterEvent(chart, args) {
+        const event = args.event;
+        if (!event || event.x === undefined || event.y === undefined) return;
+
+        const isOverMarker = (chart.$shortEventHitAreas || []).some(group => {
+          return Math.hypot(event.x - group.x, event.y - group.y) <= group.hitRadius;
+        });
+
+        chart.canvas.style.cursor = isOverMarker ? 'pointer' : 'default';
+      },
+      beforeDestroy(chart) {
+        chart.$shortEventHitAreas = [];
+        chart.$shortEventRecords = [];
+        chart.canvas.style.cursor = 'default';
+      }
+    };
 
     function openSidebar() {
       document.getElementById('sidebar').classList.remove('-translate-x-full');
@@ -676,20 +826,50 @@
       const requiredHeight = Math.max(names.length * 50 + 20, chartScrollArea.clientHeight);
       chartContainer.style.height = requiredHeight + 'px';
 
-      const chartData = []; const bgColors = [];
+      const chartData = [];
+      const bgColors = [];
+      const shortEventRecords = [];
+
       names.forEach(name => {
         data[name].forEach(record => {
-          const isForcedCheckout = (record.end >= 1439);
+          const rawEndLabel = record.endLabel || '';
+          const isOngoing = rawEndLabel.indexOf('未簽退') !== -1;
+          const isForcedCheckout = !isOngoing && (rawEndLabel.indexOf('強制結算') !== -1 || record.end >= 1439);
           const finalEndValue = isForcedCheckout ? 1440 : record.end;
-          const duration = finalEndValue - record.start;
+          const duration = Math.max(0, finalEndValue - record.start);
+          const normalizedRecord = {
+            y: name,
+            start: record.start,
+            end: finalEndValue,
+            startLabel: record.startLabel,
+            endLabel: isForcedCheckout ? '24:00' : rawEndLabel,
+            duration: duration,
+            isForcedCheckout: isForcedCheckout,
+            isOngoing: isOngoing
+          };
+
+          const shouldUseShortMarker = !isOngoing && !isForcedCheckout && duration < SHORT_RECORD_LIMIT_MINUTES;
+
+          if (shouldUseShortMarker) {
+            shortEventRecords.push({
+              ...normalizedRecord,
+              midpoint: (record.start + finalEndValue) / 2
+            });
+            return;
+          }
 
           chartData.push({
-            y: name, x: [record.start, finalEndValue], startLabel: record.startLabel, endLabel: isForcedCheckout ? "24:00" : record.endLabel, duration: duration, isForcedCheckout: isForcedCheckout 
+            ...normalizedRecord,
+            x: [record.start, finalEndValue]
           });
-          
-          if (isForcedCheckout) { bgColors.push('rgba(234, 179, 8, 0.9)'); } 
-          else if (duration > 120) { bgColors.push('rgba(239, 68, 68, 0.9)'); } 
-          else { bgColors.push('rgba(6, 182, 212, 0.85)'); }
+
+          if (isForcedCheckout) {
+            bgColors.push('rgba(234, 179, 8, 0.9)');
+          } else if (duration > 120) {
+            bgColors.push('rgba(239, 68, 68, 0.9)');
+          } else {
+            bgColors.push('rgba(6, 182, 212, 0.85)');
+          }
         });
       });
 
@@ -699,18 +879,35 @@
         myChart = new Chart(ctx, {
           type: 'bar',
           data: {
-            datasets: [{ data: chartData, backgroundColor: bgColors, borderColor: '#111827', borderWidth: 2, borderRadius: 6, barPercentage: 0.65 }]
+            labels: names,
+            datasets: [{
+              data: chartData,
+              backgroundColor: bgColors,
+              borderColor: '#111827',
+              borderWidth: 2,
+              borderRadius: 6,
+              barPercentage: 0.65
+            }]
           },
+          plugins: [shortRecordMarkerPlugin],
           options: {
-            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
             onClick: (e, activeElements, chart) => {
+              const shortGroup = (chart.$shortEventHitAreas || []).find(group => {
+                return Math.hypot(e.x - group.x, e.y - group.y) <= group.hitRadius;
+              });
+
+              if (shortGroup) {
+                showShortRecordGroupModal(shortGroup);
+                return;
+              }
+
               if (activeElements.length > 0) {
-                const index = activeElements[0].index; const record = chart.data.datasets[0].data[index]; const duration = record.duration; 
-                let htmlContent = `<div class="font-bold text-cyan-400 text-base mb-1">👤 ${record.y}</div><div>🛫 簽到：${record.startLabel}</div><div>🛬 簽退：${record.endLabel}</div><div>⏳ 時長：${Math.floor(duration/60)} 小時 ${duration%60} 分鐘</div>`;
-                let theme = 'cyan';
-                if (record.isForcedCheckout) { theme = 'yellow'; htmlContent += `<div class="text-amber-400 mt-2 font-bold flex items-center gap-1"><span class="material-icons text-sm">error</span> 狀況：忘記簽退，強制簽退</div>`; } 
-                else if (duration > 120) { theme = 'red'; htmlContent += `<div class="text-rose-400 mt-2 font-bold flex items-center gap-1"><span class="material-icons text-sm">report_problem</span> 狀況：超時或續借，請確認</div>`; }
-                showModal(htmlContent, theme);
+                const activeElement = activeElements[0];
+                const record = chart.data.datasets[activeElement.datasetIndex].data[activeElement.index];
+                if (record) showUsageRecordModal(record);
               }
             },
             layout: { padding: { left: 5, right: 15, top: 10, bottom: 0 } }, 
@@ -725,6 +922,9 @@
             plugins: { legend: { display: false }, tooltip: { enabled: false } }
           }
         });
+
+        myChart.$shortEventRecords = shortEventRecords;
+        myChart.update('none');
       }
 
       const calendarChartData = [];
