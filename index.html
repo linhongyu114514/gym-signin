@@ -18,6 +18,66 @@
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     input[type="date"] { color-scheme: dark; }
+
+    .food-wheel-canvas { touch-action: manipulation; }
+    .food-confetti {
+      position: fixed;
+      top: -24px;
+      width: 10px;
+      height: 18px;
+      border-radius: 2px;
+      opacity: 0;
+      animation: food-confetti-fall var(--duration, 3.8s) cubic-bezier(.18,.72,.35,1) var(--delay, 0s) forwards;
+      will-change: transform, opacity;
+    }
+    .food-balloon {
+      position: fixed;
+      bottom: -120px;
+      width: 44px;
+      height: 56px;
+      border-radius: 50% 50% 46% 46%;
+      opacity: 0;
+      animation: food-balloon-rise var(--duration, 4.8s) ease-out var(--delay, 0s) forwards;
+      will-change: transform, opacity;
+      box-shadow: inset -8px -10px 16px rgba(0,0,0,.18), 0 0 18px rgba(255,255,255,.08);
+    }
+    .food-balloon::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      bottom: -8px;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 10px solid currentColor;
+      filter: brightness(.8);
+    }
+    .food-balloon::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 58px;
+      width: 1px;
+      height: 72px;
+      background: rgba(255,255,255,.45);
+      transform: translateX(-50%);
+    }
+    @keyframes food-confetti-fall {
+      0% { opacity: 0; transform: translate3d(0,-5vh,0) rotate(0deg); }
+      10% { opacity: 1; }
+      100% { opacity: .95; transform: translate3d(var(--drift, 0px),110vh,0) rotate(var(--rotation, 720deg)); }
+    }
+    @keyframes food-balloon-rise {
+      0% { opacity: 0; transform: translate3d(0,0,0) rotate(-4deg); }
+      12% { opacity: .96; }
+      55% { transform: translate3d(var(--sway, 20px),-58vh,0) rotate(5deg); }
+      100% { opacity: 0; transform: translate3d(var(--sway-end, -20px),-125vh,0) rotate(-7deg); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .food-confetti, .food-balloon { animation-duration: .8s !important; }
+    }
   </style>
 </head>
 <body class="bg-gray-950 text-gray-200 min-h-screen flex flex-col items-center p-4 landscape:p-2 selection:bg-cyan-500/30">
@@ -34,11 +94,11 @@
     <div class="p-4 flex flex-col gap-2 mt-2">
       <button onclick="navigateTo('main')" class="flex items-center gap-3 text-gray-300 hover:text-white p-3 rounded-xl hover:bg-gray-800 transition shadow-sm">
         <span class="material-icons text-emerald-500">home</span>
-        <span class="font-medium">返回首頁</span>
+        <span class="font-medium">簽到 / 簽退</span>
       </button>
       <button onclick="navigateTo('assist')" class="flex items-center gap-3 text-gray-300 hover:text-white p-3 rounded-xl hover:bg-gray-800 transition shadow-sm">
         <span class="material-icons text-orange-500">person_remove</span>
-        <span class="font-medium">協助簽退</span>
+        <span class="font-medium">協助他人簽退</span>
       </button>
       <button onclick="navigateTo('timeline')" class="flex items-center gap-3 text-gray-300 hover:text-white p-3 rounded-xl hover:bg-gray-800 transition shadow-sm">
         <span class="material-icons text-cyan-500">timeline</span>
@@ -51,6 +111,10 @@
       <button onclick="navigateTo('history')" class="flex items-center gap-3 text-gray-300 hover:text-white p-3 rounded-xl hover:bg-gray-800 transition shadow-sm">
         <span class="material-icons text-amber-500">history_edu</span>
         <span class="font-medium">歷史回報紀錄</span>
+      </button>
+      <button onclick="navigateTo('foodwheel')" class="flex items-center gap-3 text-gray-300 hover:text-white p-3 rounded-xl hover:bg-gray-800 transition shadow-sm">
+        <span class="material-icons text-fuchsia-400">restaurant_menu</span>
+        <span class="font-medium">美食轉盤</span>
       </button>
     </div>
   </div>
@@ -173,7 +237,93 @@
     </div>
   </div>
 
-  <!-- ================= 頁面 3：送出問題回報頁面 ================= -->
+  <!-- ================= 頁面 3：美食轉盤 ================= -->
+  <div id="page-foodwheel" class="hidden w-full max-w-sm landscape:max-w-3xl md:max-w-xl bg-gray-900 border border-gray-800 p-5 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] relative mt-4 overflow-hidden">
+    <div class="flex items-center justify-between border-b border-gray-800 pb-4 mb-4">
+      <h2 class="text-xl font-bold text-fuchsia-400 flex items-center gap-2">
+        <span class="material-icons">restaurant_menu</span> 美食轉盤
+      </h2>
+      <span class="text-xs text-gray-500 bg-gray-950 border border-gray-800 px-2.5 py-1 rounded-full">今天吃什麼？</span>
+    </div>
+
+    <div id="food-preset-panel">
+      <p class="text-gray-400 text-sm mb-3">可複選想要的類型，轉盤會合併所有分類中的店家。</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <label class="flex items-center gap-3 bg-gray-950 border border-gray-800 rounded-xl p-3 cursor-pointer hover:border-rose-500/60 transition">
+          <input type="checkbox" value="今天吃貴一點" class="food-category-checkbox w-5 h-5 rounded border-gray-700 bg-gray-900 text-rose-500 focus:ring-rose-500 focus:ring-offset-gray-900">
+          <span class="material-icons text-rose-400">local_dining</span>
+          <span class="font-bold text-gray-200">今天吃貴一點</span>
+        </label>
+        <label class="flex items-center gap-3 bg-gray-950 border border-gray-800 rounded-xl p-3 cursor-pointer hover:border-amber-500/60 transition">
+          <input type="checkbox" value="隨便吃一吃" class="food-category-checkbox w-5 h-5 rounded border-gray-700 bg-gray-900 text-amber-500 focus:ring-amber-500 focus:ring-offset-gray-900">
+          <span class="material-icons text-amber-400">fastfood</span>
+          <span class="font-bold text-gray-200">隨便吃一吃</span>
+        </label>
+        <label class="flex items-center gap-3 bg-gray-950 border border-gray-800 rounded-xl p-3 cursor-pointer hover:border-emerald-500/60 transition">
+          <input type="checkbox" value="吃乾淨一點" class="food-category-checkbox w-5 h-5 rounded border-gray-700 bg-gray-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-gray-900">
+          <span class="material-icons text-emerald-400">eco</span>
+          <span class="font-bold text-gray-200">吃乾淨一點</span>
+        </label>
+        <label class="flex items-center gap-3 bg-gray-950 border border-gray-800 rounded-xl p-3 cursor-pointer hover:border-cyan-500/60 transition">
+          <input type="checkbox" value="月底救星" class="food-category-checkbox w-5 h-5 rounded border-gray-700 bg-gray-900 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-gray-900">
+          <span class="material-icons text-cyan-400">savings</span>
+          <span class="font-bold text-gray-200">月底救星</span>
+        </label>
+      </div>
+
+      <div id="food-category-summary" class="mt-3 text-xs text-gray-500 text-right">尚未選擇分類</div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+        <button onclick="buildPresetFoodWheel()" class="w-full bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white border border-fuchsia-500 py-3 rounded-xl font-bold hover:from-fuchsia-500 hover:to-purple-500 transition active:scale-[0.98] shadow-[0_0_18px_rgba(192,38,211,0.22)] flex items-center justify-center gap-2">
+          <span class="material-icons">donut_large</span> 產生預設轉盤
+        </button>
+        <button onclick="toggleCustomFoodWheel()" class="w-full bg-gray-800 text-gray-200 border border-gray-700 py-3 rounded-xl font-bold hover:bg-gray-700 hover:border-cyan-500 transition active:scale-[0.98] flex items-center justify-center gap-2">
+          <span class="material-icons">edit_note</span> 自訂轉盤
+        </button>
+      </div>
+    </div>
+
+    <div id="food-custom-panel" class="hidden mt-4 bg-cyan-950/15 border border-cyan-900/50 rounded-2xl p-4">
+      <div class="flex items-center justify-between gap-3 mb-2">
+        <label for="food-custom-input" class="font-bold text-cyan-300 flex items-center gap-1.5"><span class="material-icons text-base">edit</span> 自訂店家</label>
+        <button onclick="toggleCustomFoodWheel(false)" class="text-gray-500 hover:text-white transition" aria-label="關閉自訂轉盤"><span class="material-icons">close</span></button>
+      </div>
+      <p class="text-xs text-gray-500 mb-3">每行輸入一間，也可以使用逗號分隔。自訂轉盤只會抽選此處輸入的店家。</p>
+      <textarea id="food-custom-input" rows="6" class="w-full p-3 bg-gray-950 text-white border border-gray-700 rounded-xl focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none placeholder-gray-600" placeholder="例如：\n巷口麵店\n學校餐廳\n今晚想吃的火鍋店"></textarea>
+      <div class="flex gap-2 mt-3">
+        <button onclick="clearCustomFoodWheelInput()" class="shrink-0 px-4 py-3 rounded-xl bg-gray-800 border border-gray-700 text-gray-400 hover:text-white hover:bg-gray-700 transition active:scale-95">清空</button>
+        <button onclick="buildCustomFoodWheel()" class="flex-1 bg-gradient-to-r from-cyan-600 to-blue-600 text-white border border-cyan-500 py-3 rounded-xl font-bold hover:from-cyan-500 hover:to-blue-500 transition active:scale-[0.98] flex items-center justify-center gap-2">
+          <span class="material-icons">add_circle</span> 套用自訂店家
+        </button>
+      </div>
+    </div>
+
+    <div id="food-wheel-stage" class="hidden mt-6 border-t border-gray-800 pt-5">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <div>
+          <div id="food-wheel-mode-label" class="text-xs text-fuchsia-300 font-bold">預設轉盤</div>
+          <div id="food-wheel-count-label" class="text-xs text-gray-500 mt-0.5">共 0 間店家</div>
+        </div>
+        <button onclick="resetFoodWheelSelection()" class="text-xs text-gray-400 border border-gray-700 bg-gray-950 px-3 py-2 rounded-lg hover:text-white hover:border-gray-500 transition active:scale-95">重新選擇</button>
+      </div>
+
+      <div class="relative mx-auto w-full max-w-[420px] aspect-square select-none">
+        <div class="absolute left-1/2 -translate-x-1/2 -top-1 z-20 drop-shadow-[0_4px_4px_rgba(0,0,0,0.7)]" style="width:0;height:0;border-left:18px solid transparent;border-right:18px solid transparent;border-top:34px solid rgb(250 204 21);"></div>
+        <canvas id="food-wheel-canvas" class="food-wheel-canvas block w-full h-full rounded-full drop-shadow-[0_0_25px_rgba(217,70,239,0.22)]" aria-label="美食轉盤"></canvas>
+        <button id="food-wheel-center-button" onclick="spinFoodWheel()" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 rounded-full bg-gray-950 border-[5px] border-yellow-400 text-yellow-300 font-black text-xl shadow-[0_0_24px_rgba(250,204,21,0.35)] hover:scale-105 active:scale-95 transition z-10 flex flex-col items-center justify-center leading-tight">
+          <span class="material-icons text-2xl">play_arrow</span>
+          <span>開轉</span>
+        </button>
+      </div>
+
+      <div id="food-wheel-result" class="mt-5 min-h-[84px] flex flex-col items-center justify-center text-center bg-gray-950 border border-gray-800 rounded-2xl p-4 shadow-inner">
+        <span class="material-icons text-gray-600 text-3xl">restaurant</span>
+        <span class="text-sm text-gray-500 mt-1">按下轉盤中央開始抽選</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 頁面 4：送出問題回報頁面 ================= -->
   <div id="page-report" class="hidden w-full max-w-sm bg-gray-900 border border-gray-800 p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] relative mt-4">
     <h2 class="text-xl font-bold text-rose-400 mb-4 flex items-center justify-center gap-2 border-b border-gray-800 pb-4">
       <span class="material-icons">report_problem</span> 問題回報
@@ -187,7 +337,7 @@
     </div>
   </div>
 
-  <!-- ================= 頁面 4：時間軸圖表頁面 ================= -->
+  <!-- ================= 頁面 5：時間軸圖表頁面 ================= -->
   <div id="page-timeline" class="hidden w-full max-w-sm landscape:max-w-3xl md:max-w-xl bg-gray-900 p-5 rounded-3xl border border-gray-800 mt-4 shadow-[0_8px_30px_rgb(0,0,0,0.5)] transition-all duration-300">
     <div class="flex justify-between items-center mb-4">
       <h2 class="text-sm font-bold text-cyan-400 flex items-center shrink-0 bg-gray-800/50 border border-gray-700 px-3 py-1.5 rounded-lg shadow-inner gap-1.5">
@@ -232,7 +382,7 @@
     </div>
   </div>
 
-  <!-- ================= 頁面 5：歷史回報紀錄清單 ================= -->
+  <!-- ================= 頁面 6：歷史回報紀錄清單 ================= -->
   <div id="page-history" class="hidden w-full max-w-sm landscape:max-w-3xl md:max-w-xl bg-gray-900 p-5 rounded-3xl border border-gray-800 mt-4 shadow-[0_8px_30px_rgb(0,0,0,0.5)] transition-all duration-300">
     <h2 class="text-sm font-bold text-amber-400 flex items-center justify-center w-full bg-gray-800/50 border border-gray-700 px-3 py-2 rounded-lg shadow-inner gap-1.5 mb-4">
       <span class="material-icons text-amber-500 text-base">history_edu</span> 歷史回報紀錄
@@ -270,6 +420,9 @@
     </div>
   </div>
 
+  <!-- 美食轉盤慶祝動畫層 -->
+  <div id="food-celebration-layer" class="fixed inset-0 pointer-events-none overflow-hidden z-[60]" aria-hidden="true"></div>
+
   <!-- 互動彈窗 Modal -->
   <div id="custom-modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-50 transition-opacity duration-300">
     <div class="w-full max-w-xs bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-2xl transform scale-95 transition-transform duration-300">
@@ -306,11 +459,41 @@
     let historyDatePicker = null; 
     let timelineActiveDates = []; 
     let timelineDatePicker = null; 
+    let foodWheelItems = [];
+    let foodWheelAngle = 0;
+    let foodWheelSpinning = false;
+    let foodWheelAnimationFrame = null;
+    let foodWheelControlsInitialized = false;
+    let foodWheelMode = 'preset';
 
     const SHORT_RECORD_LIMIT_MINUTES = 30;
     const SHORT_MARKER_SIZE = 10;
     const SHORT_MARKER_HIT_RADIUS = 20;
     const SHORT_MARKER_MERGE_DISTANCE_PX = 28;
+
+
+    const FOOD_WHEEL_CATEGORIES = Object.freeze({
+      '今天吃貴一點': [
+        '久千代', '富美海鮮火鍋', '涮乃葉', '藏壽司', '壽司郎', '聚(火鍋)', '錢都', '肉多多',
+        '鰭兵衛', '糧2燒肉', '成功牛排', '獅子座牛排', '八方悅', '霖川鍋物', '御廷鐵板燒'
+      ],
+      '吃乾淨一點': [
+        'SELFree纖活餐盒', '逐日', '沐暮沙拉', '便利商店健康餐盒'
+      ],
+      '隨便吃一吃': [
+        'PhoWild越式生牛肉河粉', '維縈碳烤雞排', 'E炸G', '麥當勞', '老先覺', '六扇門',
+        '三杯香滷味', '福品滷味', '上野烤肉飯', '銀萊蚵仔煎', '甜屋', '銅螺灣螺獅粉',
+        '長旺鐵板燒', '人吉牛肉洞飯', '舞吉臭臭鍋', '方便食鐵板燒', '梁杜漢'
+      ],
+      '月底救星': [
+        '日誠便當', '再一碗便當', '老圓環飯包', '五叉路傳統美食', '7-11乞丐時光', '全家乞丐時光'
+      ]
+    });
+
+    const FOOD_WHEEL_COLORS = [
+      '#e11d48', '#f97316', '#eab308', '#16a34a', '#0891b2', '#2563eb',
+      '#7c3aed', '#c026d3', '#db2777', '#0d9488', '#65a30d', '#ea580c'
+    ];
 
     function formatUsageDuration(duration) {
       const safeDuration = Math.max(0, Math.round(duration));
@@ -464,13 +647,15 @@
     // 💡 導航邏輯：一點進歷史頁面就載入最新 50 筆！
     function navigateTo(pageName) {
       closeSidebar();
-      ['page-main', 'page-assist', 'page-timeline', 'page-report', 'page-history'].forEach(id => {
+      ['page-main', 'page-assist', 'page-foodwheel', 'page-timeline', 'page-report', 'page-history'].forEach(id => {
         document.getElementById(id).classList.add('hidden');
       });
       document.getElementById('page-' + pageName).classList.remove('hidden');
       
       if (pageName === 'assist') {
         fetchAssistCheckoutUsers();
+      } else if (pageName === 'foodwheel') {
+        initializeFoodWheelPage();
       } else if (pageName === 'timeline') {
         fetchAndRenderChart(document.getElementById('timeline-date').value);
       } else if (pageName === 'history') {
@@ -723,7 +908,330 @@
       });
     }
 
+
+    function initializeFoodWheelControls() {
+      if (foodWheelControlsInitialized) return;
+      foodWheelControlsInitialized = true;
+
+      document.querySelectorAll('.food-category-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', updateFoodCategorySummary);
+      });
+
+      const customInput = document.getElementById('food-custom-input');
+      const savedCustomRestaurants = localStorage.getItem('food_wheel_custom_restaurants');
+      if (customInput && savedCustomRestaurants) customInput.value = savedCustomRestaurants;
+
+      window.addEventListener('resize', () => {
+        const stage = document.getElementById('food-wheel-stage');
+        if (stage && !stage.classList.contains('hidden') && foodWheelItems.length > 0) {
+          requestAnimationFrame(drawFoodWheel);
+        }
+      });
+
+      updateFoodCategorySummary();
+    }
+
+    function initializeFoodWheelPage() {
+      initializeFoodWheelControls();
+      requestAnimationFrame(() => {
+        if (foodWheelItems.length > 0) drawFoodWheel();
+      });
+    }
+
+    function updateFoodCategorySummary() {
+      const selectedCategories = Array.from(document.querySelectorAll('.food-category-checkbox:checked')).map(item => item.value);
+      const restaurants = uniqueFoodWheelItems(selectedCategories.flatMap(category => FOOD_WHEEL_CATEGORIES[category] || []));
+      const summary = document.getElementById('food-category-summary');
+      if (!summary) return;
+
+      summary.textContent = selectedCategories.length === 0
+        ? '尚未選擇分類'
+        : `已選 ${selectedCategories.length} 個分類，共 ${restaurants.length} 間不重複店家`;
+    }
+
+    function uniqueFoodWheelItems(items) {
+      const seen = new Set();
+      return items
+        .map(item => String(item || '').trim())
+        .filter(item => {
+          if (!item || seen.has(item)) return false;
+          seen.add(item);
+          return true;
+        });
+    }
+
+    function buildPresetFoodWheel() {
+      if (foodWheelSpinning) return;
+      const selectedCategories = Array.from(document.querySelectorAll('.food-category-checkbox:checked')).map(item => item.value);
+      if (selectedCategories.length === 0) {
+        showModal('<div class="text-amber-400 font-bold text-center">請至少勾選一個飲食分類。</div>', 'yellow');
+        return;
+      }
+
+      const items = uniqueFoodWheelItems(selectedCategories.flatMap(category => FOOD_WHEEL_CATEGORIES[category] || []));
+      setFoodWheelItems(items, 'preset', selectedCategories.join('＋'));
+    }
+
+    function toggleCustomFoodWheel(forceOpen) {
+      const panel = document.getElementById('food-custom-panel');
+      if (!panel) return;
+      const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : panel.classList.contains('hidden');
+      panel.classList.toggle('hidden', !shouldOpen);
+      if (shouldOpen) {
+        setTimeout(() => {
+          panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          document.getElementById('food-custom-input')?.focus();
+        }, 50);
+      }
+    }
+
+    function parseCustomFoodWheelItems(rawText) {
+      return uniqueFoodWheelItems(String(rawText || '').split(/[\n,，;；]+/));
+    }
+
+    function buildCustomFoodWheel() {
+      if (foodWheelSpinning) return;
+      const customInput = document.getElementById('food-custom-input');
+      const rawText = customInput ? customInput.value : '';
+      const items = parseCustomFoodWheelItems(rawText);
+
+      if (items.length < 2) {
+        showModal('<div class="text-amber-400 font-bold text-center mb-1">請至少輸入兩間不同的店家。</div><div class="text-gray-400 text-xs text-center">每行一間，也可以使用逗號分隔。</div>', 'yellow');
+        return;
+      }
+
+      localStorage.setItem('food_wheel_custom_restaurants', rawText.trim());
+      setFoodWheelItems(items, 'custom', '自訂店家');
+      toggleCustomFoodWheel(false);
+    }
+
+    function clearCustomFoodWheelInput() {
+      const customInput = document.getElementById('food-custom-input');
+      if (customInput) customInput.value = '';
+      localStorage.removeItem('food_wheel_custom_restaurants');
+    }
+
+    function setFoodWheelItems(items, mode, description) {
+      foodWheelItems = uniqueFoodWheelItems(items);
+      foodWheelMode = mode;
+      foodWheelAngle = 0;
+
+      const stage = document.getElementById('food-wheel-stage');
+      const modeLabel = document.getElementById('food-wheel-mode-label');
+      const countLabel = document.getElementById('food-wheel-count-label');
+      const result = document.getElementById('food-wheel-result');
+      const centerButton = document.getElementById('food-wheel-center-button');
+
+      stage.classList.remove('hidden');
+      modeLabel.textContent = mode === 'custom' ? '自訂轉盤' : description;
+      countLabel.textContent = `共 ${foodWheelItems.length} 間店家`;
+      result.innerHTML = '<span class="material-icons text-gray-600 text-3xl">restaurant</span><span class="text-sm text-gray-500 mt-1">按下轉盤中央開始抽選</span>';
+      centerButton.disabled = false;
+      centerButton.classList.remove('opacity-60', 'cursor-wait');
+      centerButton.querySelector('span:last-child').textContent = '開轉';
+
+      requestAnimationFrame(() => {
+        drawFoodWheel();
+        stage.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+
+    function resetFoodWheelSelection() {
+      if (foodWheelSpinning) return;
+      foodWheelItems = [];
+      foodWheelAngle = 0;
+      document.getElementById('food-wheel-stage')?.classList.add('hidden');
+      document.getElementById('food-preset-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function fitFoodWheelLabel(label, itemCount) {
+      const maxChars = itemCount > 42 ? 7 : itemCount > 28 ? 9 : itemCount > 18 ? 12 : 18;
+      return label.length > maxChars ? `${label.slice(0, Math.max(1, maxChars - 1))}…` : label;
+    }
+
+    function prepareFoodWheelCanvas() {
+      const canvas = document.getElementById('food-wheel-canvas');
+      if (!canvas) return null;
+      const parentWidth = canvas.parentElement ? canvas.parentElement.clientWidth : 320;
+      const cssSize = Math.max(220, Math.min(parentWidth || 320, 420));
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const pixelSize = Math.round(cssSize * dpr);
+
+      if (canvas.width !== pixelSize || canvas.height !== pixelSize) {
+        canvas.width = pixelSize;
+        canvas.height = pixelSize;
+        canvas.style.width = `${cssSize}px`;
+        canvas.style.height = `${cssSize}px`;
+      }
+
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { canvas, ctx, size: cssSize, center: cssSize / 2 };
+    }
+
+    function drawFoodWheel() {
+      const prepared = prepareFoodWheelCanvas();
+      if (!prepared || foodWheelItems.length === 0) return;
+
+      const { ctx, size, center } = prepared;
+      const radius = center - 7;
+      const itemCount = foodWheelItems.length;
+      const arc = (Math.PI * 2) / itemCount;
+      const fontSize = itemCount > 42 ? 7 : itemCount > 30 ? 8 : itemCount > 20 ? 9 : itemCount > 12 ? 10 : 12;
+
+      ctx.clearRect(0, 0, size, size);
+      ctx.save();
+      ctx.translate(center, center);
+
+      foodWheelItems.forEach((restaurant, index) => {
+        const startAngle = foodWheelAngle + index * arc - Math.PI / 2;
+        const endAngle = startAngle + arc;
+        const middleAngle = startAngle + arc / 2;
+
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, radius, startAngle, endAngle);
+        ctx.closePath();
+        ctx.fillStyle = FOOD_WHEEL_COLORS[index % FOOD_WHEEL_COLORS.length];
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(17,24,39,.88)';
+        ctx.lineWidth = itemCount > 30 ? 1 : 2;
+        ctx.stroke();
+
+        ctx.save();
+        const normalizedMiddle = ((middleAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+        const isLeftSide = normalizedMiddle > Math.PI / 2 && normalizedMiddle < Math.PI * 1.5;
+        ctx.rotate(isLeftSide ? middleAngle + Math.PI : middleAngle);
+        ctx.textAlign = isLeftSide ? 'left' : 'right';
+        ctx.textBaseline = 'middle';
+        ctx.font = `700 ${fontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = 'rgba(0,0,0,.7)';
+        ctx.shadowBlur = 2;
+        ctx.fillText(fitFoodWheelLabel(restaurant, itemCount), isLeftSide ? -(radius - 14) : radius - 14, 0);
+        ctx.restore();
+      });
+
+      ctx.beginPath();
+      ctx.arc(0, 0, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 5;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(0, 0, Math.max(48, size * 0.145), 0, Math.PI * 2);
+      ctx.fillStyle = '#030712';
+      ctx.fill();
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function secureRandomFoodIndex(max) {
+      if (max <= 1) return 0;
+      if (window.crypto && window.crypto.getRandomValues) {
+        const buffer = new Uint32Array(1);
+        const limit = Math.floor(0x100000000 / max) * max;
+        do window.crypto.getRandomValues(buffer); while (buffer[0] >= limit);
+        return buffer[0] % max;
+      }
+      return Math.floor(Math.random() * max);
+    }
+
+    function spinFoodWheel() {
+      if (foodWheelSpinning || foodWheelItems.length < 2) return;
+
+      foodWheelSpinning = true;
+      const button = document.getElementById('food-wheel-center-button');
+      const result = document.getElementById('food-wheel-result');
+      button.disabled = true;
+      button.classList.add('opacity-60', 'cursor-wait');
+      button.querySelector('span:last-child').textContent = '轉動中';
+      result.innerHTML = '<span class="material-icons animate-spin text-fuchsia-400 text-3xl">autorenew</span><span class="text-sm text-gray-400 mt-1">命運正在幫你選餐廳…</span>';
+
+      const winnerIndex = secureRandomFoodIndex(foodWheelItems.length);
+      const arc = (Math.PI * 2) / foodWheelItems.length;
+      const fullCircle = Math.PI * 2;
+      const normalizedCurrent = ((foodWheelAngle % fullCircle) + fullCircle) % fullCircle;
+      const desiredNormalized = ((-(winnerIndex + 0.5) * arc % fullCircle) + fullCircle) % fullCircle;
+      let forwardDelta = desiredNormalized - normalizedCurrent;
+      if (forwardDelta < 0) forwardDelta += fullCircle;
+
+      const extraTurns = 6 + secureRandomFoodIndex(3);
+      const startAngle = foodWheelAngle;
+      const targetAngle = foodWheelAngle + extraTurns * fullCircle + forwardDelta;
+      const duration = 4700;
+      const startTime = performance.now();
+
+      if (foodWheelAnimationFrame) cancelAnimationFrame(foodWheelAnimationFrame);
+
+      const animate = now => {
+        const progress = Math.min(1, (now - startTime) / duration);
+        const eased = 1 - Math.pow(1 - progress, 5);
+        foodWheelAngle = startAngle + (targetAngle - startAngle) * eased;
+        drawFoodWheel();
+
+        if (progress < 1) {
+          foodWheelAnimationFrame = requestAnimationFrame(animate);
+          return;
+        }
+
+        foodWheelAngle = targetAngle % fullCircle;
+        drawFoodWheel();
+        foodWheelSpinning = false;
+        button.disabled = false;
+        button.classList.remove('opacity-60', 'cursor-wait');
+        button.querySelector('span:last-child').textContent = '再轉';
+
+        const winner = foodWheelItems[winnerIndex];
+        result.innerHTML = `<div class="text-xs font-bold text-yellow-400 tracking-widest mb-1">今天就吃</div><div class="text-2xl sm:text-3xl font-black text-white break-words">${escapeHtml(winner)}</div><div class="text-xs text-gray-500 mt-2">不准重抽……除非大家都同意 😎</div>`;
+        launchFoodCelebration();
+      };
+
+      foodWheelAnimationFrame = requestAnimationFrame(animate);
+    }
+
+    function launchFoodCelebration() {
+      const layer = document.getElementById('food-celebration-layer');
+      if (!layer) return;
+      layer.innerHTML = '';
+
+      const colors = ['#f43f5e', '#f97316', '#facc15', '#22c55e', '#06b6d4', '#3b82f6', '#a855f7', '#ec4899'];
+      const fragment = document.createDocumentFragment();
+
+      for (let index = 0; index < 90; index++) {
+        const piece = document.createElement('div');
+        piece.className = 'food-confetti';
+        piece.style.left = `${Math.random() * 100}vw`;
+        piece.style.backgroundColor = colors[index % colors.length];
+        piece.style.setProperty('--drift', `${Math.round((Math.random() - 0.5) * 260)}px`);
+        piece.style.setProperty('--rotation', `${Math.round(540 + Math.random() * 900)}deg`);
+        piece.style.setProperty('--delay', `${(Math.random() * 0.7).toFixed(2)}s`);
+        piece.style.setProperty('--duration', `${(3 + Math.random() * 2).toFixed(2)}s`);
+        fragment.appendChild(piece);
+      }
+
+      for (let index = 0; index < 12; index++) {
+        const balloon = document.createElement('div');
+        balloon.className = 'food-balloon';
+        balloon.style.left = `${3 + Math.random() * 90}vw`;
+        balloon.style.backgroundColor = colors[(index * 3) % colors.length];
+        balloon.style.color = colors[(index * 3) % colors.length];
+        const sway = Math.round((Math.random() - 0.5) * 90);
+        balloon.style.setProperty('--sway', `${sway}px`);
+        balloon.style.setProperty('--sway-end', `${-sway}px`);
+        balloon.style.setProperty('--delay', `${(Math.random() * 0.9).toFixed(2)}s`);
+        balloon.style.setProperty('--duration', `${(4.1 + Math.random() * 1.6).toFixed(2)}s`);
+        fragment.appendChild(balloon);
+      }
+
+      layer.appendChild(fragment);
+      setTimeout(() => { layer.innerHTML = ''; }, 6500);
+    }
+
     window.onload = function() {
+      initializeFoodWheelControls();
       var savedEmail = localStorage.getItem('gym_email');
       var savedName = localStorage.getItem('gym_username');
       
