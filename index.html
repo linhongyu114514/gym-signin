@@ -288,6 +288,7 @@
   <script>
     // =================【請貼上你的 GAS Web App URL】=================
     const GAS_URL = "https://script.google.com/macros/s/AKfycbz5N0iuhQZSvxARW8tv8sPHmlGhy4PiC3KSJe73ahtR04aBhdHYMTz9BhbFeRQrPC-6/exec";
+    const EXPECTED_BACKEND_VERSION = "assist-checkout-v4-20260731";
     // ===========================================================================
 
     let myChart = null;
@@ -544,6 +545,13 @@
       document.getElementById('custom-modal').classList.add('hidden');
     }
 
+    function assertBackendVersion(response) {
+      const actualVersion = response && response.backendVersion ? response.backendVersion : '';
+      if (actualVersion !== EXPECTED_BACKEND_VERSION) {
+        throw new Error(`GAS 後端版本不符。目前：${actualVersion || '舊版或未回傳版本'}；需要：${EXPECTED_BACKEND_VERSION}。請重新部署 Code.gs，並確認 index.html 使用的是該部署的 Web App URL。`);
+      }
+    }
+
     function fetchAssistCheckoutUsers() {
       const container = document.getElementById('assist-list-container');
       const dateLabel = document.getElementById('assist-date-label');
@@ -564,8 +572,10 @@
       .then(response => {
         if (currentAssistToken !== fetchToken) return;
         if (response.status !== 'success') throw new Error(response.message || '取得名單失敗');
+        assertBackendVersion(response);
 
         assistCheckoutUsers = Array.isArray(response.users) ? response.users : [];
+        window.assistCheckoutDebug = response.debug || {};
         dateLabel.innerText = response.date ? `資料日期：${response.date}` : '';
         renderAssistCheckoutUsers();
       })
@@ -591,6 +601,7 @@
             <span class="material-icons text-emerald-500 text-4xl">check_circle</span>
             <span class="font-bold text-gray-300">目前沒有可顯示的尚未簽退人員</span>
             <span class="text-xs text-gray-500">本人請使用首頁的正常簽退流程</span>
+            <span class="text-[11px] text-gray-600">後端讀到今日 ${(window.assistCheckoutDebug && window.assistCheckoutDebug.todayRowCount) || 0} 筆紀錄，判定尚未簽退 ${(window.assistCheckoutDebug && window.assistCheckoutDebug.openUserCountBeforeExcludingHelper) || 0} 人</span>
           </div>`;
         return;
       }
@@ -824,16 +835,18 @@
       })
       .then(res => res.json())
       .then(res => {
-        if(res.status === "success") {
-          // 將真實狀態更新回手機的 localStorage
-          localStorage.setItem('gym_status', res.gym_status);
-          localStorage.setItem('gym_current_role', res.role);
-        }
+        if (res.status !== "success") throw new Error(res.message || "初始化狀態失敗");
+        assertBackendVersion(res);
+
+        localStorage.setItem('gym_status', res.gym_status);
+        localStorage.setItem('gym_current_role', res.role);
         updateBubbleUI();
       })
       .catch(err => {
-        showModal('<div class="text-rose-400 font-bold text-center">取得最新狀態失敗，目前顯示手機本機紀錄</div>', 'red');
-        updateBubbleUI(); // 若斷網，降級使用本地狀態
+        bubble.innerText = "後端未更新";
+        bubble.className = "w-52 h-52 rounded-full text-gray-400 font-bold text-xl flex items-center justify-center bg-gray-800 border-[6px] border-gray-700 cursor-not-allowed shadow-inner transition-all text-center px-4";
+        isBubbleProcessing = true;
+        showModal(`<div class="text-rose-400 font-bold text-center mb-2">無法確認目前簽到狀態</div><div class="text-gray-300 text-xs leading-relaxed">${escapeHtml(err.message || '取得最新狀態失敗')}</div>`, 'red');
       });
     }
 
