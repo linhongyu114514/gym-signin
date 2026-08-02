@@ -441,7 +441,7 @@
   <script>
     // =================【請貼上你的 GAS Web App URL】=================
     const GAS_URL = "https://script.google.com/macros/s/AKfycbz5N0iuhQZSvxARW8tv8sPHmlGhy4PiC3KSJe73ahtR04aBhdHYMTz9BhbFeRQrPC-6/exec";
-    const EXPECTED_BACKEND_VERSION = "assist-checkout-v4-20260731";
+    const EXPECTED_BACKEND_VERSION = "reliability-v5-20260803";
     // ===========================================================================
 
     let myChart = null;
@@ -465,6 +465,22 @@
     let foodWheelAnimationFrame = null;
     let foodWheelControlsInitialized = false;
     let foodWheelMode = 'preset';
+    let initialStatusUnavailable = false;
+    let timelineResizeTimer = null;
+    let currentTimelineNameCount = 0;
+
+    const GAS_READ_TIMEOUT_MS = 12000;
+    const GAS_WRITE_TIMEOUT_MS = 30000;
+    const GAS_READ_RETRY_COUNT = 1;
+    const GAS_READ_ONLY_ACTIONS = new Set([
+      '取得系統版本',
+      '初始化狀態',
+      '檢查目前身分',
+      '取得在場名單',
+      '取得協助簽退名單',
+      '取得報表圖表',
+      '取得回報紀錄'
+    ]);
 
     const SHORT_RECORD_LIMIT_MINUTES = 30;
     const SHORT_MARKER_SIZE = 10;
@@ -657,6 +673,7 @@
       } else if (pageName === 'foodwheel') {
         initializeFoodWheelPage();
       } else if (pageName === 'timeline') {
+        scheduleTimelineChartResize();
         fetchAndRenderChart(document.getElementById('timeline-date').value);
       } else if (pageName === 'history') {
         document.getElementById('search-history-name').value = '';
@@ -673,6 +690,117 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+    }
+
+    function wait(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function normalizeGasRequestError(error, timeoutMs) {
+      if (error && error.name === 'AbortError') {
+        return new Error(`後端超過 ${Math.round(timeoutMs / 1000)} 秒仍未回應`);
+      }
+      return error instanceof Error ? error : new Error(String(error || '未知連線錯誤'));
+    }
+
+    async function gasRequest(payload, options = {}) {
+      const action = payload && payload.action ? payload.action : '';
+      const isReadOnly = GAS_READ_ONLY_ACTIONS.has(action);
+      const timeoutMs = options.timeoutMs || (isReadOnly ? GAS_READ_TIMEOUT_MS : GAS_WRITE_TIMEOUT_MS);
+      const retryCount = options.retryCount !== undefined
+        ? options.retryCount
+        : (isReadOnly ? GAS_READ_RETRY_COUNT : 0);
+      let lastError = null;
+
+      for (let attempt = 0; attempt <= retryCount; attempt++) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+        try {
+          const response = await fetch(GAS_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+            body: JSON.stringify(payload),
+            signal: controller.signal,
+            cache: 'no-store',
+            credentials: 'omit',
+            redirect: 'follow'
+          });
+
+          const responseText = await response.text();
+          if (!response.ok) {
+            throw new Error(`後端 HTTP ${response.status}`);
+          }
+
+          let result;
+          try {
+            result = JSON.parse(responseText);
+          } catch (parseError) {
+            throw new Error('後端回傳內容不是有效 JSON，可能是部署或暫時性服務錯誤');
+          }
+
+          if (!result || result.status !== 'success') {
+            const backendError = new Error((result && result.message) || '後端處理失敗');
+            backendError.nonRetryable = true;
+            throw backendError;
+          }
+
+          return result;
+        } catch (error) {
+          lastError = normalizeGasRequestError(error, timeoutMs);
+          if ((error && error.nonRetryable) || attempt >= retryCount) break;
+
+          // 唯讀請求才會自動重試，避免簽到／簽退等寫入操作被重複送出。
+          await wait(700 * Math.pow(2, attempt) + Math.floor(Math.random() * 250));
+        } finally {
+          clearTimeout(timeoutId);
+        }
+      }
+
+      throw lastError || new Error('無法連線至後端');
+    }
+
+    function setTimelineChartHeight(nameCount = currentTimelineNameCount) {
+      const chartContainer = document.getElementById('chart-container');
+      const chartScrollArea = document.getElementById('chart-scroll-area');
+      if (!chartContainer || !chartScrollArea) return;
+
+      const visibleHeight = Math.max(1, chartScrollArea.clientHeight);
+      const requiredHeight = Math.max(nameCount * 50 + 20, visibleHeight);
+      chartContainer.style.height = `${requiredHeight}px`;
+    }
+
+    function resizeTimelineCharts() {
+      const page = document.getElementById('page-timeline');
+      if (!page || page.classList.contains('hidden')) return;
+
+      setTimelineChartHeight();
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (myChart) {
+            myChart.resize();
+            myChart.update('none');
+          }
+          if (axisChart) {
+            axisChart.resize();
+            axisChart.update('none');
+          }
+        });
+      });
+    }
+
+    function scheduleTimelineChartResize() {
+      clearTimeout(timelineResizeTimer);
+      timelineResizeTimer = setTimeout(resizeTimelineCharts, 180);
+    }
+
+    window.addEventListener('resize', scheduleTimelineChartResize, { passive: true });
+    window.addEventListener('orientationchange', () => {
+      clearTimeout(timelineResizeTimer);
+      timelineResizeTimer = setTimeout(resizeTimelineCharts, 320);
+    }, { passive: true });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', scheduleTimelineChartResize, { passive: true });
     }
 
     function applyModalTheme(theme) {
@@ -746,14 +874,10 @@
       container.innerHTML = '<div class="flex justify-center items-center h-[220px]"><span class="material-icons animate-spin text-orange-500 text-3xl">autorenew</span></div>';
       dateLabel.innerText = '';
 
-      fetch(GAS_URL, {
-        method: 'POST',
-        body: JSON.stringify({
-          action: '取得協助簽退名單',
-          helperName: helperName
-        })
+      gasRequest({
+        action: '取得協助簽退名單',
+        helperName: helperName
       })
-      .then(res => res.json())
       .then(response => {
         if (currentAssistToken !== fetchToken) return;
         if (response.status !== 'success') throw new Error(response.message || '取得名單失敗');
@@ -884,16 +1008,12 @@
       const helperName = localStorage.getItem('gym_username') || '';
       const helperEmail = localStorage.getItem('gym_email') || '';
 
-      fetch(GAS_URL, {
-        method: 'POST',
-        body: JSON.stringify({
-          action: '協助簽退',
-          targetName: targetName,
-          helperName: helperName,
-          helperEmail: helperEmail
-        })
+      gasRequest({
+        action: '協助簽退',
+        targetName: targetName,
+        helperName: helperName,
+        helperEmail: helperEmail
       })
-      .then(res => res.json())
       .then(response => {
         if (response.status !== 'success') throw new Error(response.message || '協助簽退失敗');
         showModal(`<div class="text-emerald-400 font-bold text-center">${escapeHtml(response.message || `已協助 ${targetName} 完成簽退。`)}</div>`, 'cyan');
@@ -1230,7 +1350,7 @@
       setTimeout(() => { layer.innerHTML = ''; }, 6500);
     }
 
-    window.onload = function() {
+    document.addEventListener('DOMContentLoaded', function() {
       initializeFoodWheelControls();
       var savedEmail = localStorage.getItem('gym_email');
       var savedName = localStorage.getItem('gym_username');
@@ -1290,7 +1410,7 @@
         // 取代原本的 showMainPage，改呼叫向後端確認狀態的函數
         checkInitialStatus(savedName);
       }
-    };
+    });
 
     function changeTimelineDate(offset) {
       const dateInput = document.getElementById('timeline-date');
@@ -1337,24 +1457,20 @@
       bubble.className = "w-52 h-52 rounded-full text-white font-bold text-2xl flex items-center justify-center bg-gray-800 border-[6px] border-gray-700 cursor-wait shadow-inner transition-all";
       isBubbleProcessing = true; 
 
-      fetch(GAS_URL, {
-        method: "POST",
-        body: JSON.stringify({ action: "初始化狀態", name: name })
-      })
-      .then(res => res.json())
+      gasRequest({ action: "初始化狀態", name: name })
       .then(res => {
-        if (res.status !== "success") throw new Error(res.message || "初始化狀態失敗");
         assertBackendVersion(res);
-
+        initialStatusUnavailable = false;
         localStorage.setItem('gym_status', res.gym_status);
         localStorage.setItem('gym_current_role', res.role);
         updateBubbleUI();
       })
       .catch(err => {
-        bubble.innerText = "後端未更新";
-        bubble.className = "w-52 h-52 rounded-full text-gray-400 font-bold text-xl flex items-center justify-center bg-gray-800 border-[6px] border-gray-700 cursor-not-allowed shadow-inner transition-all text-center px-4";
-        isBubbleProcessing = true;
-        showModal(`<div class="text-rose-400 font-bold text-center mb-2">無法確認目前簽到狀態</div><div class="text-gray-300 text-xs leading-relaxed">${escapeHtml(err.message || '取得最新狀態失敗')}</div>`, 'red');
+        initialStatusUnavailable = true;
+        isBubbleProcessing = false;
+        bubble.innerText = "點擊重試";
+        bubble.className = "w-52 h-52 rounded-full text-amber-300 font-bold text-xl flex items-center justify-center bg-gray-800 border-[6px] border-amber-700 cursor-pointer shadow-inner transition-all text-center px-4 active:scale-95";
+        showModal(`<div class="text-rose-400 font-bold text-center mb-2">暫時無法確認簽到狀態</div><div class="text-gray-300 text-xs leading-relaxed">${escapeHtml(err.message || '取得最新狀態失敗')}。系統已自動重試，仍失敗時可點擊圓形按鈕再次連線。</div>`, 'red');
       });
     }
 
@@ -1402,6 +1518,10 @@
 
     function handleBubbleClick() {
       if (isBubbleProcessing) return;
+      if (initialStatusUnavailable) {
+        checkInitialStatus(localStorage.getItem('gym_username') || '');
+        return;
+      }
       isBubbleProcessing = true;
 
       var status = localStorage.getItem('gym_status') || 'checked_out';
@@ -1416,8 +1536,7 @@
       var bubble = document.getElementById('btn-bubble');
       bubble.innerText = "處理中";
 
-      fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: '簽到', name: name, email: email, role: role }) })
-      .then(res => res.json())
+      gasRequest({ action: '簽到', name: name, email: email, role: role })
       .then(() => {
         bubble.innerText = "簽到成功";
         localStorage.setItem('gym_status', 'checked_in');
@@ -1436,16 +1555,15 @@
       bubble.innerText = "驗證中";
       showLoading("正在驗證身份與交接狀態...");
       
-      fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: "檢查目前身分", name: name }) })
-      .then(res => res.json())
+      gasRequest({ action: "檢查目前身分", name: name })
       .then(response => {
+        assertBackendVersion(response);
         var latestRole = response.role || '共同使用者';
         localStorage.setItem('gym_current_role', latestRole); 
         
         if (latestRole === '主要借用者') {
           showLoading("正在撈取名單...");
-          fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: "取得在場名單", excludeName: name }) })
-          .then(res => res.json())
+          return gasRequest({ action: "取得在場名單", excludeName: name })
           .then(resList => {
             hideLoading();
             bubble.innerText = "簽退";
@@ -1465,7 +1583,7 @@
         } else {
           hideLoading();
           bubble.innerText = "處理中";
-          fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: '簽退', name: name, email: localStorage.getItem('gym_email'), role: '共同使用者' }) })
+          return gasRequest({ action: '簽退', name: name, email: localStorage.getItem('gym_email'), role: '共同使用者' })
           .then(() => {
             bubble.innerText = "簽退成功";
             localStorage.setItem('gym_status', 'checked_out');
@@ -1507,8 +1625,7 @@
       isSubmittingSignOut = true; 
       showLoading("記錄中...");
 
-      fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) })
-      .then(res => res.json())
+      gasRequest(payload)
       .then(() => {
         localStorage.setItem('gym_status', 'checked_out');
         showSuccess("👋 簽退成功！掰噗！👋");
@@ -1541,8 +1658,7 @@
       btn.innerText = "提交中...";
       btn.disabled = true;
 
-      fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: "回報問題", name: localStorage.getItem('gym_username'), email: localStorage.getItem('gym_email'), issue: issueText }) })
-      .then(res => res.json())
+      gasRequest({ action: "回報問題", name: localStorage.getItem('gym_username'), email: localStorage.getItem('gym_email'), issue: issueText })
       .then(() => {
         document.getElementById('input-issue').value = ''; 
         btn.innerText = "送出回報";
@@ -1567,21 +1683,22 @@
       
       const fetchToken = ++currentFetchToken;
 
-      fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: "取得報表圖表", date: dateStr }) })
-      .then(res => res.json())
+      gasRequest({ action: "取得報表圖表", date: dateStr })
       .then(response => {
-        if (currentFetchToken !== fetchToken) return; 
-        
+        if (currentFetchToken !== fetchToken) return;
+        assertBackendVersion(response);
+
         if (response.activeDates) {
           timelineActiveDates = response.activeDates;
-          timelineDatePicker.redraw();
+          if (timelineDatePicker) timelineDatePicker.redraw();
         }
         
         renderChart(response.data || response, response.calendarEvents || []); 
       })
       .catch(err => {
-        if (currentFetchToken !== fetchToken) return; 
+        if (currentFetchToken !== fetchToken) return;
         noDataHint.classList.remove('hidden');
+        showModal(`<div class="text-rose-400 font-bold text-center mb-2">圖表讀取失敗</div><div class="text-gray-300 text-xs text-center">${escapeHtml(err.message || '請稍後重新整理')}</div>`, 'red');
       });
     }
 
@@ -1593,6 +1710,9 @@
       const chartContainer = document.getElementById('chart-container');
       const chartScrollArea = document.getElementById('chart-scroll-area');
 
+      currentTimelineNameCount = names.length;
+      setTimelineChartHeight(names.length);
+
       if (names.length === 0 && calendarEvents.length === 0) { 
         noDataHint.classList.remove('hidden'); 
         document.getElementById('axisChart').classList.add('hidden');
@@ -1601,9 +1721,6 @@
         noDataHint.classList.add('hidden'); 
         document.getElementById('axisChart').classList.remove('hidden');
       }
-
-      const requiredHeight = Math.max(names.length * 50 + 20, chartScrollArea.clientHeight);
-      chartContainer.style.height = requiredHeight + 'px';
 
       const chartData = [];
       const bgColors = [];
@@ -1761,6 +1878,8 @@
           plugins: { legend: { display: false }, tooltip: { enabled: false } }
         }
       });
+
+      scheduleTimelineChartResize();
     }
 
     // --- 💡 歷史紀錄獲取 API (整合日期與姓名) ---
@@ -1773,11 +1892,11 @@
       
       const fetchToken = ++currentHistoryToken;
 
-      fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: "取得回報紀錄", date: dateStr, searchName: searchName }) })
-      .then(res => res.json())
+      gasRequest({ action: "取得回報紀錄", date: dateStr, searchName: searchName })
       .then(data => {
         if (currentHistoryToken !== fetchToken) return;
-        
+        assertBackendVersion(data);
+
         // 💡 只有在「非查詢特定姓名」時，才更新日曆的藍點
         if (data.activeDates && !searchName) {
           historyActiveDates = data.activeDates;
@@ -1791,6 +1910,7 @@
         if (currentHistoryToken !== fetchToken) return;
         container.innerHTML = '';
         noDataHint.classList.remove('hidden');
+        showModal(`<div class="text-rose-400 font-bold text-center mb-2">歷史紀錄讀取失敗</div><div class="text-gray-300 text-xs text-center">${escapeHtml(err.message || '請稍後重新整理')}</div>`, 'red');
       });
     }
 
