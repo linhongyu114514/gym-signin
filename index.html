@@ -1866,7 +1866,7 @@
       const slowTimer = setTimeout(() => {
         if (currentFetchToken !== fetchToken || cached) return;
         setTimelineLoading(true, 'GAS 可能正在冷啟動，仍在等待資料…');
-        setTimelineStatus('後端處理時間較長，但尚未判定為無資料。', 'warning');
+        setTimelineStatus('後端處理時間較長，請稍後或重新整理。', 'warning');
       }, 9000);
 
       const reportPromise = getSharedRequest('report:' + dateStr, () => gasRequest(
@@ -1915,8 +1915,8 @@
           console.warn('圖表背景更新失敗，保留快取內容：', err);
         } else {
           clearTimelineChartView();
-          setTimelineStatus('讀取失敗；這不代表當天沒有資料。', 'error');
-          setTimelineError(true, message + '。這是連線／執行逾時，不會被當成「當天無資料」。');
+          setTimelineStatus('伺服器忙碌中', '');
+          setTimelineError(true, message + '。請過段時間再次嘗試。');
         }
       });
 
