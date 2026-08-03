@@ -152,6 +152,7 @@
       
       <button id="btn-bubble" onclick="handleBubbleClick()" class="w-48 h-48 rounded-full text-white font-bold text-4xl flex items-center justify-center transition-all transform active:scale-95 duration-300">
       </button>
+      <div id="home-sync-status" class="mt-3 min-h-[20px] text-xs text-gray-500 text-center">使用本機狀態，背景同步中…</div>
 
       <div id="role-selector" class="mt-8 bg-gray-950 border border-gray-800 p-1.5 rounded-xl flex gap-1 w-full justify-center shadow-inner">
         <label class="flex-1 text-center py-2.5 rounded-lg cursor-pointer bg-transparent text-gray-500 hover:text-gray-300 font-medium text-sm transition-all" id="label-role-main">
@@ -333,7 +334,7 @@
     </p>
     <textarea id="input-issue" rows="5" class="w-full p-3 bg-gray-950 text-white border border-gray-700 rounded-xl focus:border-rose-500 focus:ring-1 focus:ring-rose-500 outline-none mb-5" placeholder="請詳細描述您遇到的問題..."></textarea>
     <div class="flex gap-3">
-      <button onclick="submitReport()" class="w-full bg-gradient-to-r from-rose-600 to-red-600 text-white p-3 rounded-xl font-bold shadow-lg hover:from-rose-500 hover:to-red-500 transition active:scale-95">送出回報</button>
+      <button onclick="submitReport(this)" class="w-full bg-gradient-to-r from-rose-600 to-red-600 text-white p-3 rounded-xl font-bold shadow-lg hover:from-rose-500 hover:to-red-500 transition active:scale-95">送出回報</button>
     </div>
   </div>
 
@@ -357,12 +358,27 @@
       </div>
     </div>
     
-    <div class="flex items-center justify-end gap-2 mb-2 pr-1 text-[11px] text-gray-400">
+    <div class="flex items-center justify-end gap-2 mb-1 pr-1 text-[11px] text-gray-400">
       <span class="inline-block" style="width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:13px solid rgb(34 211 238);"></span>
       <span>未滿 30 分鐘的短時間使用紀錄</span>
     </div>
+    <div id="timeline-status" class="min-h-[18px] mb-1 pr-1 text-right text-[11px] text-gray-500"></div>
 
     <div class="relative flex flex-col rounded-2xl border border-gray-800 bg-gray-950 shadow-inner p-2">
+      <div id="timeline-loading" class="hidden absolute inset-0 z-30 flex items-center justify-center bg-gray-950/75 backdrop-blur-sm rounded-2xl pointer-events-none">
+        <div class="flex flex-col items-center gap-2 text-cyan-300 text-sm font-bold text-center px-5">
+          <span class="material-icons animate-spin text-3xl">autorenew</span>
+          <span id="timeline-loading-text">正在更新圖表…</span>
+        </div>
+      </div>
+      <div id="timeline-error" class="hidden absolute inset-0 z-30 flex items-center justify-center bg-gray-950/95 backdrop-blur-sm rounded-2xl">
+        <div class="flex flex-col items-center gap-3 text-center px-6 max-w-sm">
+          <span class="material-icons text-rose-400 text-4xl">cloud_off</span>
+          <div class="text-rose-300 font-bold">圖表讀取失敗</div>
+          <div id="timeline-error-text" class="text-gray-400 text-xs leading-relaxed"></div>
+          <button type="button" onclick="retryTimelineChart()" class="px-5 py-2.5 rounded-xl bg-cyan-700 border border-cyan-600 text-white font-bold hover:bg-cyan-600 active:scale-95 transition">重新讀取</button>
+        </div>
+      </div>
       <div id="no-timeline-data" class="hidden absolute inset-0 flex items-center justify-center text-gray-400 text-sm font-bold bg-gray-950/90 rounded-2xl z-10 pointer-events-none backdrop-blur-sm">
         <div class="flex flex-col items-center gap-2">
           <span class="material-icons text-gray-500 text-3xl">inbox</span>
@@ -441,7 +457,7 @@
   <script>
     // =================【請貼上你的 GAS Web App URL】=================
     const GAS_URL = "https://script.google.com/macros/s/AKfycbz5N0iuhQZSvxARW8tv8sPHmlGhy4PiC3KSJe73ahtR04aBhdHYMTz9BhbFeRQrPC-6/exec";
-    const EXPECTED_BACKEND_VERSION = "reliability-v5-20260803";
+    const EXPECTED_BACKEND_VERSION = "performance-v8-20260803";
     // ===========================================================================
 
     let myChart = null;
@@ -466,22 +482,32 @@
     let foodWheelControlsInitialized = false;
     let foodWheelMode = 'preset';
     let initialStatusUnavailable = false;
+    let isHomeSyncing = false;
+    const timelineRequestPromises = new Map();
     let timelineResizeTimer = null;
     let currentTimelineNameCount = 0;
+    let lastTimelineRequestedDate = '';
 
-    const GAS_READ_TIMEOUT_MS = 12000;
+    const GAS_READ_TIMEOUT_MS = 15000;
     const GAS_WRITE_TIMEOUT_MS = 30000;
-    const GAS_READ_RETRY_COUNT = 1;
+    const GAS_READ_RETRY_COUNT = 0;
     const GAS_READ_ONLY_ACTIONS = new Set([
       '取得系統版本',
       '初始化狀態',
       '檢查目前身分',
       '取得在場名單',
+      '取得簽退準備資料',
       '取得協助簽退名單',
       '取得報表圖表',
+      '取得圖表有效日期',
+      '取得日曆預約',
       '取得回報紀錄'
     ]);
 
+    const HOME_SYNC_TIMEOUT_MS = 6500;
+    const TIMELINE_CACHE_TTL_MS = 10 * 60 * 1000;
+    const TIMELINE_STALE_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+    const TIMELINE_CACHE_PREFIX = 'gym_timeline_v8_';
     const SHORT_RECORD_LIMIT_MINUTES = 30;
     const SHORT_MARKER_SIZE = 10;
     const SHORT_MARKER_HIT_RADIUS = 20;
@@ -1350,7 +1376,116 @@
       setTimeout(() => { layer.innerHTML = ''; }, 6500);
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
+
+    function setHomeSyncStatus(mode, text) {
+      const element = document.getElementById('home-sync-status');
+      if (!element) return;
+      if (mode === 'ok') {
+        element.className = 'mt-3 min-h-[20px] text-xs text-emerald-400 text-center';
+        element.textContent = text || '狀態已同步';
+      } else if (mode === 'warning') {
+        element.className = 'mt-3 min-h-[20px] text-xs text-amber-400 text-center';
+        element.textContent = text || '目前顯示上次狀態，操作時後端仍會再次驗證';
+      } else {
+        element.className = 'mt-3 min-h-[20px] text-xs text-gray-500 text-center';
+        element.textContent = text || '背景同步中…';
+      }
+    }
+
+    function saveHomeState(status, role) {
+      localStorage.setItem('gym_status', status || 'checked_out');
+      localStorage.setItem('gym_current_role', role || '共同使用者');
+      localStorage.setItem('gym_status_synced_at', String(Date.now()));
+    }
+
+    function readTimelineCacheEntry(dateStr) {
+      const key = TIMELINE_CACHE_PREFIX + dateStr;
+      const storages = [sessionStorage, localStorage];
+
+      for (const storage of storages) {
+        try {
+          const raw = storage.getItem(key);
+          if (!raw) continue;
+          const cached = JSON.parse(raw);
+          if (!cached || !cached.payload) continue;
+
+          const age = Date.now() - Number(cached.savedAt || 0);
+          if (age > TIMELINE_STALE_CACHE_TTL_MS) {
+            storage.removeItem(key);
+            continue;
+          }
+
+          return {
+            payload: cached.payload,
+            isFresh: age <= TIMELINE_CACHE_TTL_MS,
+            age: age
+          };
+        } catch (error) {
+          // 儲存內容損壞或被瀏覽器限制時，改讀另一個 storage。
+        }
+      }
+
+      return null;
+    }
+
+    function saveTimelineCache(dateStr, payload) {
+      const serialized = JSON.stringify({
+        savedAt: Date.now(),
+        payload: payload
+      });
+
+      [sessionStorage, localStorage].forEach(storage => {
+        try {
+          storage.setItem(TIMELINE_CACHE_PREFIX + dateStr, serialized);
+        } catch (error) {
+          // 儲存空間不足時略過，不影響主要功能。
+        }
+      });
+    }
+
+    function setTimelineLoading(visible, message = '正在更新圖表…') {
+      const element = document.getElementById('timeline-loading');
+      const text = document.getElementById('timeline-loading-text');
+      if (text) text.textContent = message;
+      if (element) element.classList.toggle('hidden', !visible);
+    }
+
+    function setTimelineStatus(message = '', tone = 'normal') {
+      const element = document.getElementById('timeline-status');
+      if (!element) return;
+      element.textContent = message;
+      element.className = 'min-h-[18px] mb-1 pr-1 text-right text-[11px] ' + (
+        tone === 'error' ? 'text-rose-400' :
+        tone === 'warning' ? 'text-amber-400' :
+        tone === 'ok' ? 'text-emerald-500' : 'text-gray-500'
+      );
+    }
+
+    function setTimelineError(visible, message = '') {
+      const overlay = document.getElementById('timeline-error');
+      const text = document.getElementById('timeline-error-text');
+      if (text) text.textContent = message;
+      if (overlay) overlay.classList.toggle('hidden', !visible);
+    }
+
+    function clearTimelineChartView() {
+      if (myChart) { myChart.destroy(); myChart = null; }
+      if (axisChart) { axisChart.destroy(); axisChart = null; }
+      currentTimelineNameCount = 0;
+      document.getElementById('no-timeline-data').classList.add('hidden');
+      document.getElementById('axisChart').classList.add('hidden');
+      setTimelineChartHeight(0);
+    }
+
+    function retryTimelineChart() {
+      const dateStr = lastTimelineRequestedDate || document.getElementById('timeline-date').value;
+      if (!dateStr) return;
+      setTimelineError(false);
+      fetchAndRenderChart(dateStr, true);
+    }
+
+
+    document.addEventListener('DOMContentLoaded' , function() {
       initializeFoodWheelControls();
       var savedEmail = localStorage.getItem('gym_email');
       var savedName = localStorage.getItem('gym_username');
@@ -1446,31 +1581,34 @@
       checkInitialStatus(name); // 綁定後立即向後端確認狀態
     }
 
-    // 💡 新增：向 GAS 索取真實狀態的函式
+    // 先立即顯示本機最後狀態，再於背景同步 GAS；不再讓首頁按鈕卡在「讀取中」。
     function checkInitialStatus(name) {
       document.getElementById('step-main').classList.remove('hidden');
       document.getElementById('display-name').innerText = name;
+      initialStatusUnavailable = false;
+      updateBubbleUI();
+      setHomeSyncStatus('syncing', '背景同步最新簽到狀態…');
 
-      var bubble = document.getElementById('btn-bubble');
-      // 先變成灰色等待狀態，防呆
-      bubble.innerText = "讀取中...";
-      bubble.className = "w-52 h-52 rounded-full text-white font-bold text-2xl flex items-center justify-center bg-gray-800 border-[6px] border-gray-700 cursor-wait shadow-inner transition-all";
-      isBubbleProcessing = true; 
+      if (isHomeSyncing) return;
+      isHomeSyncing = true;
 
-      gasRequest({ action: "初始化狀態", name: name })
+      gasRequest(
+        { action: "初始化狀態", name: name },
+        { timeoutMs: HOME_SYNC_TIMEOUT_MS, retryCount: 0 }
+      )
       .then(res => {
         assertBackendVersion(res);
-        initialStatusUnavailable = false;
-        localStorage.setItem('gym_status', res.gym_status);
-        localStorage.setItem('gym_current_role', res.role);
+        saveHomeState(res.gym_status, res.role);
         updateBubbleUI();
+        setHomeSyncStatus('ok', '狀態已同步');
       })
       .catch(err => {
         initialStatusUnavailable = true;
-        isBubbleProcessing = false;
-        bubble.innerText = "點擊重試";
-        bubble.className = "w-52 h-52 rounded-full text-amber-300 font-bold text-xl flex items-center justify-center bg-gray-800 border-[6px] border-amber-700 cursor-pointer shadow-inner transition-all text-center px-4 active:scale-95";
-        showModal(`<div class="text-rose-400 font-bold text-center mb-2">暫時無法確認簽到狀態</div><div class="text-gray-300 text-xs leading-relaxed">${escapeHtml(err.message || '取得最新狀態失敗')}。系統已自動重試，仍失敗時可點擊圓形按鈕再次連線。</div>`, 'red');
+        setHomeSyncStatus('warning', '暫時無法同步；目前顯示上次狀態，送出時後端仍會驗證');
+        console.warn('首頁狀態同步失敗：', err);
+      })
+      .finally(() => {
+        isHomeSyncing = false;
       });
     }
 
@@ -1518,34 +1656,35 @@
 
     function handleBubbleClick() {
       if (isBubbleProcessing) return;
-      if (initialStatusUnavailable) {
-        checkInitialStatus(localStorage.getItem('gym_username') || '');
-        return;
-      }
       isBubbleProcessing = true;
 
       var status = localStorage.getItem('gym_status') || 'checked_out';
-      if (status === 'checked_out') { processCheckIn(); } 
-      else { processPreCheckOut(); }
+      if (status === 'checked_out') {
+        processCheckIn();
+      } else {
+        processPreCheckOut();
+      }
     }
 
     function processCheckIn() {
       var name = localStorage.getItem('gym_username');
       var email = localStorage.getItem('gym_email');
-      var role = document.querySelector('input[name="role"]:checked').value;
+      var selectedRole = document.querySelector('input[name="role"]:checked');
+      var role = selectedRole ? selectedRole.value : '共同使用者';
       var bubble = document.getElementById('btn-bubble');
       bubble.innerText = "處理中";
 
       gasRequest({ action: '簽到', name: name, email: email, role: role })
-      .then(() => {
-        bubble.innerText = "簽到成功";
-        localStorage.setItem('gym_status', 'checked_in');
-        localStorage.setItem('gym_current_role', role); 
-        setTimeout(updateBubbleUI, 1500);
+      .then(response => {
+        assertBackendVersion(response);
+        saveHomeState(response.gym_status || 'checked_in', response.role || role);
+        bubble.innerText = response.alreadyProcessed ? "狀態已同步" : "簽到成功";
+        setHomeSyncStatus('ok', '狀態已同步');
+        setTimeout(updateBubbleUI, 900);
       })
-      .catch(err => { 
-        showModal('<div class="text-rose-400 font-bold text-center">網路連線失敗，請稍後重試</div>', 'red'); 
-        updateBubbleUI(); 
+      .catch(err => {
+        showModal(`<div class="text-rose-400 font-bold text-center mb-2">簽到失敗</div><div class="text-gray-300 text-xs text-center">${escapeHtml(err.message || '請稍後重試')}</div>`, 'red');
+        updateBubbleUI();
       });
     }
 
@@ -1553,48 +1692,59 @@
       var name = localStorage.getItem('gym_username');
       var bubble = document.getElementById('btn-bubble');
       bubble.innerText = "驗證中";
-      showLoading("正在驗證身份與交接狀態...");
-      
-      gasRequest({ action: "檢查目前身分", name: name })
+      showLoading("正在取得簽退資料…");
+
+      gasRequest({ action: "取得簽退準備資料", name: name })
       .then(response => {
         assertBackendVersion(response);
-        var latestRole = response.role || '共同使用者';
-        localStorage.setItem('gym_current_role', latestRole); 
-        
-        if (latestRole === '主要借用者') {
-          showLoading("正在撈取名單...");
-          return gasRequest({ action: "取得在場名單", excludeName: name })
-          .then(resList => {
-            hideLoading();
-            bubble.innerText = "簽退";
-            var select = document.getElementById('select-next-user');
-            select.innerHTML = '<option value="">-- 請選擇接替的現場人員 --</option>'; 
-            if (resList.users && resList.users.length > 0) {
-              resList.users.forEach(function(username) {
-                var opt = document.createElement('option');
-                opt.value = username; opt.innerText = username;
-                select.appendChild(opt);
-              });
-            }
-            document.getElementById('step-main').classList.add('hidden');
-            document.getElementById('step-device').classList.remove('hidden');
-            isBubbleProcessing = false; 
-          });
-        } else {
+
+        if (response.gym_status === 'checked_out') {
+          saveHomeState('checked_out', '共同使用者');
           hideLoading();
-          bubble.innerText = "處理中";
-          return gasRequest({ action: '簽退', name: name, email: localStorage.getItem('gym_email'), role: '共同使用者' })
-          .then(() => {
-            bubble.innerText = "簽退成功";
-            localStorage.setItem('gym_status', 'checked_out');
-            setTimeout(updateBubbleUI, 1500);
-          });
+          updateBubbleUI();
+          showModal('<div class="text-cyan-300 font-bold text-center">後端顯示您目前已簽退，畫面已同步。</div>', 'cyan');
+          return null;
         }
+
+        var latestRole = response.role || '共同使用者';
+        saveHomeState('checked_in', latestRole);
+
+        if (latestRole === '主要借用者') {
+          hideLoading();
+          bubble.innerText = "簽退";
+          var select = document.getElementById('select-next-user');
+          select.innerHTML = '<option value="">-- 請選擇接替的現場人員 --</option>';
+          (response.users || []).forEach(function(username) {
+            var opt = document.createElement('option');
+            opt.value = username;
+            opt.innerText = username;
+            select.appendChild(opt);
+          });
+          document.getElementById('step-main').classList.add('hidden');
+          document.getElementById('step-device').classList.remove('hidden');
+          isBubbleProcessing = false;
+          return null;
+        }
+
+        bubble.innerText = "處理中";
+        return gasRequest({
+          action: '簽退',
+          name: name,
+          email: localStorage.getItem('gym_email'),
+          role: '共同使用者'
+        }).then(signOutResponse => {
+          assertBackendVersion(signOutResponse);
+          saveHomeState('checked_out', '共同使用者');
+          hideLoading();
+          bubble.innerText = signOutResponse.alreadyProcessed ? "狀態已同步" : "簽退成功";
+          setHomeSyncStatus('ok', '狀態已同步');
+          setTimeout(updateBubbleUI, 900);
+        });
       })
-      .catch(err => { 
-        showModal('<div class="text-rose-400 font-bold text-center">網路連線逾時，請稍後重試</div>', 'red'); 
-        hideLoading(); 
-        updateBubbleUI(); 
+      .catch(err => {
+        showModal(`<div class="text-rose-400 font-bold text-center mb-2">簽退資料讀取失敗</div><div class="text-gray-300 text-xs text-center">${escapeHtml(err.message || '請稍後重試')}</div>`, 'red');
+        hideLoading();
+        updateBubbleUI();
       });
     }
 
@@ -1626,8 +1776,9 @@
       showLoading("記錄中...");
 
       gasRequest(payload)
-      .then(() => {
-        localStorage.setItem('gym_status', 'checked_out');
+      .then(response => {
+        assertBackendVersion(response);
+        saveHomeState('checked_out', '共同使用者');
         showSuccess("👋 簽退成功！掰噗！👋");
         setTimeout(() => {
           hideLoading();
@@ -1647,14 +1798,14 @@
       });
     }
 
-    function submitReport() {
+    function submitReport(btn) {
       const issueText = document.getElementById('input-issue').value.trim();
       if (!issueText) { 
         showModal('<div class="text-amber-400 font-bold text-center">⚠️ 請輸入問題描述！</div>', 'yellow'); 
         return; 
       }
       
-      const btn = event.target;
+      btn = btn || document.querySelector('#page-report button');
       btn.innerText = "提交中...";
       btn.disabled = true;
 
@@ -1674,31 +1825,131 @@
       });
     }
 
-    // --- 📊 雙圖表技術 ---
-    function fetchAndRenderChart(dateStr) {
+    // --- 📊 簽到資料優先；有效日期與 Calendar 背景載入。連線失敗不再冒充「無資料」。 ---
+    function fetchAndRenderChart(dateStr, forceRefresh = false) {
+      lastTimelineRequestedDate = dateStr;
       const noDataHint = document.getElementById('no-timeline-data');
-      if (myChart) { myChart.destroy(); myChart = null; }
-      if (axisChart) { axisChart.destroy(); axisChart = null; }
-      noDataHint.classList.add('hidden');
-      
+      const cacheEntry = forceRefresh ? null : readTimelineCacheEntry(dateStr);
+      const cached = cacheEntry ? cacheEntry.payload : null;
       const fetchToken = ++currentFetchToken;
+      const payload = cached || { data: {}, activeDates: [], calendarEvents: [] };
+      let reportReady = Boolean(cached);
+      let calendarReady = Boolean(cached && Array.isArray(cached.calendarEvents));
 
-      gasRequest({ action: "取得報表圖表", date: dateStr })
+      noDataHint.classList.add('hidden');
+      setTimelineError(false);
+
+      if (cached) {
+        timelineActiveDates = cached.activeDates || [];
+        if (timelineDatePicker) timelineDatePicker.redraw();
+        renderChart(cached.data || {}, cached.calendarEvents || []);
+        setTimelineLoading(false);
+        setTimelineStatus(
+          cacheEntry.isFresh ? '已顯示最近資料，正在背景確認…' : '已先顯示較早的成功資料，正在重新連線…',
+          cacheEntry.isFresh ? 'normal' : 'warning'
+        );
+      } else {
+        clearTimelineChartView();
+        setTimelineStatus('正在向後端讀取資料…');
+        setTimelineLoading(true, '正在讀取圖表…');
+      }
+
+      const getSharedRequest = (key, requestFactory) => {
+        let promise = timelineRequestPromises.get(key);
+        if (!promise) {
+          promise = requestFactory().finally(() => timelineRequestPromises.delete(key));
+          timelineRequestPromises.set(key, promise);
+        }
+        return promise;
+      };
+
+      const slowTimer = setTimeout(() => {
+        if (currentFetchToken !== fetchToken || cached) return;
+        setTimelineLoading(true, 'GAS 可能正在冷啟動，仍在等待資料…');
+        setTimelineStatus('後端處理時間較長，但尚未判定為無資料。', 'warning');
+      }, 9000);
+
+      const reportPromise = getSharedRequest('report:' + dateStr, () => gasRequest(
+        { action: '取得報表圖表', date: dateStr },
+        { timeoutMs: 30000, retryCount: 0 }
+      ));
+
+      const activeDatesPromise = getSharedRequest('active-dates', () => gasRequest(
+        { action: '取得圖表有效日期' },
+        { timeoutMs: 25000, retryCount: 0 }
+      ));
+
+      const calendarPromise = getSharedRequest('calendar:' + dateStr, () => gasRequest(
+        { action: '取得日曆預約', date: dateStr },
+        { timeoutMs: 25000, retryCount: 0 }
+      ));
+
+      reportPromise
+      .then(response => {
+        clearTimeout(slowTimer);
+        if (currentFetchToken !== fetchToken) return;
+        assertBackendVersion(response);
+        payload.data = response.data || {};
+        reportReady = true;
+        renderChart(payload.data, payload.calendarEvents || []);
+        saveTimelineCache(dateStr, payload);
+        setTimelineLoading(false);
+        setTimelineError(false);
+        setTimelineStatus(
+          response.serverTimingMs !== undefined ? `資料已更新（後端 ${response.serverTimingMs} ms）` : '資料已更新',
+          'ok'
+        );
+      })
+      .catch(err => {
+        clearTimeout(slowTimer);
+        if (currentFetchToken !== fetchToken) return;
+        setTimelineLoading(false);
+        noDataHint.classList.add('hidden');
+
+        const message = err && err.message
+          ? err.message
+          : '目前無法連線至圖表後端，請重新讀取。';
+
+        if (cached) {
+          setTimelineStatus('背景更新失敗，目前保留上次成功資料。', 'warning');
+          console.warn('圖表背景更新失敗，保留快取內容：', err);
+        } else {
+          clearTimelineChartView();
+          setTimelineStatus('讀取失敗；這不代表當天沒有資料。', 'error');
+          setTimelineError(true, message + '。這是連線／執行逾時，不會被當成「當天無資料」。');
+        }
+      });
+
+      activeDatesPromise
       .then(response => {
         if (currentFetchToken !== fetchToken) return;
         assertBackendVersion(response);
+        payload.activeDates = response.activeDates || [];
+        timelineActiveDates = payload.activeDates;
+        if (timelineDatePicker) timelineDatePicker.redraw();
+        saveTimelineCache(dateStr, payload);
+      })
+      .catch(err => console.warn('有效日期背景更新失敗：', err));
 
-        if (response.activeDates) {
-          timelineActiveDates = response.activeDates;
-          if (timelineDatePicker) timelineDatePicker.redraw();
+      calendarPromise
+      .then(response => {
+        if (currentFetchToken !== fetchToken) return;
+        assertBackendVersion(response);
+        payload.calendarEvents = response.calendarEvents || [];
+        calendarReady = true;
+        saveTimelineCache(dateStr, payload);
+
+        if (!reportReady) return;
+        if (Object.keys(payload.data || {}).length === 0) {
+          renderChart(payload.data || {}, payload.calendarEvents);
+        } else {
+          renderCalendarAxis(payload.calendarEvents, 75);
+          scheduleTimelineChartResize();
         }
-        
-        renderChart(response.data || response, response.calendarEvents || []); 
       })
       .catch(err => {
-        if (currentFetchToken !== fetchToken) return;
-        noDataHint.classList.remove('hidden');
-        showModal(`<div class="text-rose-400 font-bold text-center mb-2">圖表讀取失敗</div><div class="text-gray-300 text-xs text-center">${escapeHtml(err.message || '請稍後重新整理')}</div>`, 'red');
+        calendarReady = true;
+        console.warn('Calendar 背景更新失敗：', err);
       });
     }
 
@@ -1709,6 +1960,9 @@
       const noDataHint = document.getElementById('no-timeline-data');
       const chartContainer = document.getElementById('chart-container');
       const chartScrollArea = document.getElementById('chart-scroll-area');
+
+      if (myChart) { myChart.destroy(); myChart = null; }
+      if (axisChart) { axisChart.destroy(); axisChart = null; }
 
       currentTimelineNameCount = names.length;
       setTimelineChartHeight(names.length);
@@ -1823,63 +2077,76 @@
         myChart.update('none');
       }
 
-      const calendarChartData = [];
-      calendarEvents.forEach(ev => {
-        calendarChartData.push({
-          y: '📍預約', x: [ev.start, ev.end], title: ev.title, startLabel: ev.startLabel, endLabel: ev.endLabel
-        });
-      });
+      renderCalendarAxis(calendarEvents, sharedYAxisWidth);
+      scheduleTimelineChartResize();
+    }
+
+    function renderCalendarAxis(calendarEvents, sharedYAxisWidth = 75) {
+      const axisCanvas = document.getElementById('axisChart');
+      const axisCtx = axisCanvas.getContext('2d');
+      if (axisChart) {
+        axisChart.destroy();
+        axisChart = null;
+      }
+
+      axisCanvas.classList.remove('hidden');
+      const calendarChartData = (calendarEvents || []).map(ev => ({
+        y: '📍預約',
+        x: [ev.start, ev.end],
+        title: ev.title,
+        startLabel: ev.startLabel,
+        endLabel: ev.endLabel
+      }));
 
       axisChart = new Chart(axisCtx, {
         type: 'bar',
-        data: { 
-          labels: ['📍預約'], 
-          datasets: [{ 
-            data: calendarChartData, 
-            backgroundColor: 'rgba(139, 92, 246, 0.7)', 
+        data: {
+          labels: ['📍預約'],
+          datasets: [{
+            data: calendarChartData,
+            backgroundColor: 'rgba(139, 92, 246, 0.7)',
             borderColor: '#6d28d9',
             borderWidth: 1,
             borderRadius: 4,
             barPercentage: 0.6
-          }] 
+          }]
         },
         options: {
           indexAxis: 'y', responsive: true, maintainAspectRatio: false,
           onClick: (e, activeElements, chart) => {
             if (activeElements.length > 0) {
-              const index = activeElements[0].index; const record = chart.data.datasets[0].data[index];
-              let htmlContent = `<div class="font-bold text-purple-400 text-base mb-1">📅 預約事項：${record.title}</div><div>🛫 開始：${record.startLabel}</div><div>🛬 結束：${record.endLabel}</div>`;
-              showModal(htmlContent, 'purple'); 
+              const index = activeElements[0].index;
+              const record = chart.data.datasets[0].data[index];
+              let htmlContent = `<div class="font-bold text-purple-400 text-base mb-1">📅 預約事項：${escapeHtml(record.title)}</div><div>🛫 開始：${escapeHtml(record.startLabel)}</div><div>🛬 結束：${escapeHtml(record.endLabel)}</div>`;
+              showModal(htmlContent, 'purple');
             }
           },
-          layout: { padding: { left: 5, right: 15, top: 0, bottom: 0 } }, 
+          layout: { padding: { left: 5, right: 15, top: 0, bottom: 0 } },
           scales: {
-            x: { 
-              display: true, min: 0, max: 1440, 
-              ticks: { 
-                display: true, stepSize: 60, 
-                callback: value => { 
-                  let h = Math.floor(value / 60); 
-                  let displayHour = h > 24 ? h - 24 : h; 
-                  return ("0" + displayHour).slice(-2); 
-                }, 
-                color: '#9CA3AF', font: { size: 11, weight: 'bold' }, maxRotation: 0 
-              }, 
+            x: {
+              display: true, min: 0, max: 1440,
+              ticks: {
+                display: true, stepSize: 60,
+                callback: value => {
+                  let h = Math.floor(value / 60);
+                  let displayHour = h > 24 ? h - 24 : h;
+                  return ("0" + displayHour).slice(-2);
+                },
+                color: '#9CA3AF', font: { size: 11, weight: 'bold' }, maxRotation: 0
+              },
               grid: { display: false }, border: { display: false }
             },
-            y: { 
-              display: true, 
-              afterFit: function(scale) { scale.width = sharedYAxisWidth; }, 
+            y: {
+              display: true,
+              afterFit: function(scale) { scale.width = sharedYAxisWidth; },
               grid: { display: false },
-              ticks: { color: '#D8B4FE', font: { size: 11, weight: 'bold' } }, 
+              ticks: { color: '#D8B4FE', font: { size: 11, weight: 'bold' } },
               border: { display: false }
             }
           },
           plugins: { legend: { display: false }, tooltip: { enabled: false } }
         }
       });
-
-      scheduleTimelineChartResize();
     }
 
     // --- 💡 歷史紀錄獲取 API (整合日期與姓名) ---
@@ -1963,10 +2230,10 @@
 
         card.innerHTML = `
           <div class="flex justify-between items-center border-b border-gray-700 pb-2">
-            <span class="text-amber-400 font-bold text-sm flex items-center gap-1"><span class="material-icons text-sm">person</span> ${report.name}</span>
-            <span class="text-gray-400 text-xs flex items-center gap-1"><span class="material-icons text-xs">schedule</span> ${displayTime}</span>
+            <span class="text-amber-400 font-bold text-sm flex items-center gap-1"><span class="material-icons text-sm">person</span> ${escapeHtml(report.name)}</span>
+            <span class="text-gray-400 text-xs flex items-center gap-1"><span class="material-icons text-xs">schedule</span> ${escapeHtml(displayTime)}</span>
           </div>
-          <p class="text-gray-200 text-sm whitespace-pre-wrap leading-relaxed mt-1">${report.issue}</p>
+          <p class="text-gray-200 text-sm whitespace-pre-wrap leading-relaxed mt-1">${escapeHtml(report.issue)}</p>
         `;
         container.appendChild(card);
       });
