@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="referrer" content="no-referrer">
+  <title>Google 帳戶登入｜運科二簽到系統</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 20px; background: #030712; color: #e5e7eb; }
+    main { width: min(100%, 390px); padding: 28px 22px; border: 1px solid #1f2937; border-radius: 24px; background: #111827; box-shadow: 0 24px 70px rgba(0,0,0,.45); text-align: center; }
+    .icon { width: 64px; height: 64px; margin: 0 auto 14px; border-radius: 50%; display: grid; place-items: center; background: #0e7490; font-size: 30px; }
+    h1 { margin: 0; color: #67e8f9; font-size: 22px; }
+    p { color: #9ca3af; line-height: 1.65; font-size: 14px; }
+    #google-button { min-height: 44px; display: flex; justify-content: center; margin: 22px 0 12px; }
+    #status { min-height: 44px; padding: 12px; border-radius: 12px; background: #030712; border: 1px solid #1f2937; color: #9ca3af; font-size: 13px; line-height: 1.5; }
+    #status.error { color: #fda4af; border-color: #881337; background: rgba(76,5,25,.25); }
+    #status.success { color: #6ee7b7; border-color: #065f46; background: rgba(2,44,34,.35); }
+    .hint { margin-top: 14px; font-size: 11px; color: #6b7280; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="icon" aria-hidden="true">G</div>
+    <h1 id="title">Google 帳戶登入</h1>
+    <p>請選擇要綁定或切換的 Google 帳戶。登入完成後，這個視窗會自動關閉並回到簽到系統。</p>
+    <div id="google-button"></div>
+    <div id="status">正在載入 Google 帳戶選擇器…</div>
+    <div class="hint">此頁只負責 Google 身分驗證，不會讀取你的雲端硬碟、Gmail 或其他私人內容。</div>
+  </main>
+
+  <script>
+    (() => {
+      const params = new URLSearchParams(location.search);
+      const clientId = params.get('clientId') || '';
+      const challengeToken = params.get('challenge') || '';
+      const nonce = params.get('nonce') || '';
+      const receiverOrigin = params.get('receiverOrigin') || '';
+      const mode = params.get('mode') || 'login';
+      const statusEl = document.getElementById('status');
+      const titleEl = document.getElementById('title');
+
+      if (mode === 'switch') titleEl.textContent = '切換 Google 帳戶';
+
+      function fail(message) {
+        statusEl.textContent = message;
+        statusEl.className = 'error';
+      }
+
+      function receiverIsAllowed(value) {
+        try {
+          const url = new URL(value);
+          const host = url.hostname.toLowerCase();
+          return url.protocol === 'https:' && (
+            host === 'script.google.com' ||
+            host === 'script.googleusercontent.com' ||
+            host.endsWith('-script.googleusercontent.com')
+          );
+        } catch (error) {
+          return false;
+        }
+      }
+
+      if (!window.opener) {
+        fail('請從健身房簽到系統開啟這個登入頁，不要直接開啟此網址。');
+        return;
+      }
+      if (!clientId || !challengeToken || !nonce || !receiverIsAllowed(receiverOrigin)) {
+        fail('登入參數不完整或來源不正確，請關閉視窗並回到簽到系統重試。');
+        return;
+      }
+
+      function sendCredential(response) {
+        if (!response || !response.credential) {
+          fail('Google 沒有回傳登入憑證，請再試一次。');
+          return;
+        }
+        statusEl.textContent = 'Google 帳戶驗證成功，正在返回簽到系統…';
+        statusEl.className = 'success';
+        try {
+          window.opener.postMessage({
+            type: 'gym-google-login-success',
+            credential: response.credential,
+            challengeToken: challengeToken
+          }, receiverOrigin);
+          setTimeout(() => window.close(), 500);
+        } catch (error) {
+          fail('無法把登入結果傳回簽到系統，請關閉視窗後重試。');
+        }
+      }
+
+      function initializeGoogleButton() {
+        if (!window.google || !google.accounts || !google.accounts.id) {
+          setTimeout(initializeGoogleButton, 100);
+          return;
+        }
+
+        try {
+          google.accounts.id.initialize({
+            client_id: clientId,
+            callback: sendCredential,
+            ux_mode: 'popup',
+            auto_select: false,
+            cancel_on_tap_outside: false,
+            context: mode === 'switch' ? 'use' : 'signin',
+            nonce: nonce
+          });
+          google.accounts.id.disableAutoSelect();
+          google.accounts.id.renderButton(document.getElementById('google-button'), {
+            type: 'standard',
+            theme: 'outline',
+            size: 'large',
+            text: mode === 'switch' ? 'continue_with' : 'signin_with',
+            shape: 'rectangular',
+            logo_alignment: 'left',
+            width: 320
+          });
+          statusEl.textContent = mode === 'switch'
+            ? '請按上方按鈕並選擇要切換的 Google 帳戶。'
+            : '請按上方按鈕選擇 Google 帳戶。';
+        } catch (error) {
+          fail('Google 登入元件初始化失敗：' + (error && error.message ? error.message : String(error)));
+        }
+      }
+
+      window.addEventListener('load', initializeGoogleButton);
+    })();
+  </script>
+</body>
+</html>
