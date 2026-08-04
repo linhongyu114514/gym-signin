@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="referrer" content="no-referrer">
   <title>運動科學實驗室簽到系統</title>
   
   <script src="https://cdn.tailwindcss.com"></script>
@@ -116,6 +117,10 @@
         <span class="material-icons text-fuchsia-400">restaurant_menu</span>
         <span class="font-medium">美食轉盤</span>
       </button>
+      <button onclick="logoutGoogleAccount()" class="flex items-center gap-3 text-gray-400 hover:text-white p-3 rounded-xl hover:bg-gray-800 transition shadow-sm mt-3 border-t border-gray-800 pt-4">
+        <span class="material-icons text-gray-500">logout</span>
+        <span class="font-medium">切換 Google 帳戶</span>
+      </button>
     </div>
   </div>
 
@@ -131,24 +136,32 @@
   <div id="page-main" class="w-full max-w-sm bg-gray-900 border border-gray-800 p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] relative mt-4">
     <div id="step-bind" class="hidden">
       <h1 class="text-2xl font-bold text-center text-cyan-400 mb-2 flex items-center justify-center gap-2">
-        <span class="material-icons text-cyan-500">link</span> 帳號綁定
+        <span class="material-icons text-cyan-500">account_circle</span> Google 帳戶登入
       </h1>
-      <p class="text-gray-400 mb-6 text-center text-sm bg-gray-800/50 p-2 rounded-lg border border-gray-800">初次使用，請綁定您的 Google 帳號與姓名</p>
-      <div class="space-y-4">
+      <p id="login-hint" class="text-gray-400 mb-6 text-center text-sm bg-gray-800/50 p-3 rounded-lg border border-gray-800 leading-relaxed">正在確認登入中的 Google 帳戶…</p>
+      <div id="profile-bind-form" class="hidden space-y-4">
         <div>
-          <label class="block text-gray-300 text-sm font-bold mb-1 flex items-center gap-1"><span class="material-icons text-sm text-gray-400">email</span> Google 帳號 (Email)</label>
-          <input type="email" id="input-email" class="w-full p-3 bg-gray-950 text-white border border-gray-700 rounded-xl placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all" placeholder="example@gmail.com">
+          <label class="block text-gray-300 text-sm font-bold mb-1 flex items-center gap-1"><span class="material-icons text-sm text-emerald-400">verified_user</span> 已登入 Google Email</label>
+          <input type="email" id="input-email" class="w-full p-3 bg-gray-950 text-gray-400 border border-gray-700 rounded-xl cursor-not-allowed" readonly>
         </div>
         <div>
-          <label class="block text-gray-300 text-sm font-bold mb-1 flex items-center gap-1"><span class="material-icons text-sm text-gray-400">badge</span> 真實姓名</label>
-          <input type="text" id="input-name" class="w-full p-3 bg-gray-950 text-white border border-gray-700 rounded-xl placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all" placeholder="請輸入姓名">
+          <label class="block text-gray-300 text-sm font-bold mb-1 flex items-center gap-1"><span class="material-icons text-sm text-gray-400">badge</span> 首次設定真實姓名</label>
+          <input type="text" id="input-name" class="w-full p-3 bg-gray-950 text-white border border-gray-700 rounded-xl placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all" placeholder="只需設定一次姓名">
         </div>
-        <button onclick="bindAccount()" class="w-full bg-gradient-to-r from-blue-600 to-cyan-500 text-white border-none p-3 rounded-xl font-bold text-lg hover:from-blue-500 hover:to-cyan-400 transition-all shadow-[0_0_15px_rgba(6,182,212,0.4)] active:scale-95">完成綁定</button>
+        <button id="bind-account-btn" onclick="bindAccount()" class="w-full bg-gradient-to-r from-blue-600 to-cyan-500 text-white border-none p-3 rounded-xl font-bold text-lg hover:from-blue-500 hover:to-cyan-400 transition-all shadow-[0_0_15px_rgba(6,182,212,0.4)] active:scale-95">完成姓名綁定</button>
+      </div>
+      <div id="login-error-panel" class="hidden text-center space-y-3">
+        <span class="material-icons text-rose-400 text-4xl">account_circle_off</span>
+        <div id="login-error-text" class="text-rose-300 text-sm leading-relaxed"></div>
+        <button onclick="restartGoogleLogin()" class="w-full bg-gray-800 border border-gray-700 text-gray-200 p-3 rounded-xl font-bold hover:bg-gray-700 transition">開啟 Google 帳戶登入</button>
       </div>
     </div>
 
     <div id="step-main" class="hidden flex flex-col items-center">
-      <p class="text-lg text-gray-300 mb-6 bg-gray-800/60 border border-gray-700 px-5 py-2 rounded-2xl shadow-inner">哈囉，<span id="display-name" class="font-bold text-cyan-400"></span> 👋</p>
+      <div class="mb-6 text-center">
+        <p class="text-lg text-gray-300 bg-gray-800/60 border border-gray-700 px-5 py-2 rounded-2xl shadow-inner">哈囉，<span id="display-name" class="font-bold text-cyan-400"></span> 👋</p>
+        <div id="display-google-email" class="mt-2 text-[11px] text-gray-500"></div>
+      </div>
       
       <button id="btn-bubble" onclick="handleBubbleClick()" class="w-48 h-48 rounded-full text-white font-bold text-4xl flex items-center justify-center transition-all transform active:scale-95 duration-300">
       </button>
@@ -455,10 +468,38 @@
   </div>
 
   <script>
-    // =================【請貼上你的 GAS Web App URL】=================
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbz5N0iuhQZSvxARW8tv8sPHmlGhy4PiC3KSJe73ahtR04aBhdHYMTz9BhbFeRQrPC-6/exec";
-    const EXPECTED_BACKEND_VERSION = "performance-v8-20260803";
-    // ===========================================================================
+    // 此頁面直接由 GAS HtmlService 提供，後端透過 google.script.run 同源呼叫。
+    const EXPECTED_BACKEND_VERSION = "google-gis-v14-20260805";
+    const EMBEDDED_APP_AUTH_TOKEN = <?!= JSON.stringify(appAuthToken || "") ?>;
+    const AUTHENTICATED_GOOGLE_EMAIL = <?!= JSON.stringify(authenticatedEmail || "") ?>;
+    const AUTHENTICATED_GOOGLE_NAME = <?!= JSON.stringify(authenticatedGoogleName || "") ?>;
+    const APP_BASE_URL = <?!= JSON.stringify(appBaseUrl || "") ?>;
+    const GOOGLE_LOGIN_PAGE_URL = <?!= JSON.stringify(googleLoginPageUrl || "") ?>;
+    const GOOGLE_LOGIN_ORIGIN = GOOGLE_LOGIN_PAGE_URL ? new URL(GOOGLE_LOGIN_PAGE_URL).origin : "";
+    const INITIAL_LOGIN_ERROR = <?!= JSON.stringify(initialLoginError || "") ?>;
+    const AUTH_TOKEN_STORAGE_KEY = 'gym_google_auth_token_v12';
+    let APP_AUTH_TOKEN = '';
+    let googleLoginPopup = null;
+    let googleLoginPopupTimer = null;
+    let googleLoginPending = false;
+    let googleLoginSwitchMode = false;
+
+    function readStoredAuthToken() {
+      try { return localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || ''; } catch (error) { return ''; }
+    }
+
+    function persistAuthToken(token) {
+      APP_AUTH_TOKEN = String(token || '');
+      try {
+        if (APP_AUTH_TOKEN) localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, APP_AUTH_TOKEN);
+        else localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+      } catch (error) {}
+    }
+
+    APP_AUTH_TOKEN = EMBEDDED_APP_AUTH_TOKEN || readStoredAuthToken();
+    if (EMBEDDED_APP_AUTH_TOKEN) persistAuthToken(EMBEDDED_APP_AUTH_TOKEN);
+
+    // v14 不再把 Google OAuth callback 導回 Apps Script；登入結果會由外部 GIS 頁面透過 postMessage 傳回。
 
     let myChart = null;
     let axisChart = null; 
@@ -488,11 +529,12 @@
     let currentTimelineNameCount = 0;
     let lastTimelineRequestedDate = '';
 
-    const GAS_READ_TIMEOUT_MS = 15000;
-    const GAS_WRITE_TIMEOUT_MS = 30000;
+    const GAS_READ_TIMEOUT_MS = 45000;
+    const GAS_WRITE_TIMEOUT_MS = 60000;
     const GAS_READ_RETRY_COUNT = 0;
     const GAS_READ_ONLY_ACTIONS = new Set([
       '取得系統版本',
+      '取得登入狀態',
       '初始化狀態',
       '檢查目前身分',
       '取得在場名單',
@@ -504,10 +546,10 @@
       '取得回報紀錄'
     ]);
 
-    const HOME_SYNC_TIMEOUT_MS = 6500;
+    const HOME_SYNC_TIMEOUT_MS = 15000;
     const TIMELINE_CACHE_TTL_MS = 10 * 60 * 1000;
     const TIMELINE_STALE_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-    const TIMELINE_CACHE_PREFIX = 'gym_timeline_v8_';
+    const TIMELINE_CACHE_PREFIX = 'gym_timeline_v9_';
     const SHORT_RECORD_LIMIT_MINUTES = 30;
     const SHORT_MARKER_SIZE = 10;
     const SHORT_MARKER_HIT_RADIUS = 20;
@@ -723,10 +765,54 @@
     }
 
     function normalizeGasRequestError(error, timeoutMs) {
-      if (error && error.name === 'AbortError') {
+      if (error && error.name === 'TimeoutError') {
         return new Error(`後端超過 ${Math.round(timeoutMs / 1000)} 秒仍未回應`);
       }
-      return error instanceof Error ? error : new Error(String(error || '未知連線錯誤'));
+      return error instanceof Error ? error : new Error(
+        error && error.message ? error.message : String(error || '未知連線錯誤')
+      );
+    }
+
+    function invokeGasRpc(payload, timeoutMs) {
+      return new Promise((resolve, reject) => {
+        let settled = false;
+        const startedAt = performance.now();
+        const timeoutId = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          const timeoutError = new Error(`後端超過 ${Math.round(timeoutMs / 1000)} 秒仍未回應`);
+          timeoutError.name = 'TimeoutError';
+          reject(timeoutError);
+        }, timeoutMs);
+
+        const finish = (handler, value) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeoutId);
+          handler(value);
+        };
+
+        const requestPayload = Object.assign({}, payload || {}, { authToken: APP_AUTH_TOKEN });
+        google.script.run
+          .withSuccessHandler(result => {
+            if (!result || result.status !== 'success') {
+              const backendError = new Error((result && result.message) || '後端處理失敗');
+              backendError.code = result && result.code ? result.code : '';
+              backendError.nonRetryable = true;
+              finish(reject, backendError);
+              return;
+            }
+
+            result.clientRoundTripMs = Math.round(performance.now() - startedAt);
+            finish(resolve, result);
+          })
+          .withFailureHandler(error => {
+            finish(reject, new Error(
+              error && error.message ? error.message : String(error || 'GAS 執行失敗')
+            ));
+          })
+          .apiRequest(requestPayload);
+      });
     }
 
     async function gasRequest(payload, options = {}) {
@@ -739,47 +825,12 @@
       let lastError = null;
 
       for (let attempt = 0; attempt <= retryCount; attempt++) {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
         try {
-          const response = await fetch(GAS_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-            body: JSON.stringify(payload),
-            signal: controller.signal,
-            cache: 'no-store',
-            credentials: 'omit',
-            redirect: 'follow'
-          });
-
-          const responseText = await response.text();
-          if (!response.ok) {
-            throw new Error(`後端 HTTP ${response.status}`);
-          }
-
-          let result;
-          try {
-            result = JSON.parse(responseText);
-          } catch (parseError) {
-            throw new Error('後端回傳內容不是有效 JSON，可能是部署或暫時性服務錯誤');
-          }
-
-          if (!result || result.status !== 'success') {
-            const backendError = new Error((result && result.message) || '後端處理失敗');
-            backendError.nonRetryable = true;
-            throw backendError;
-          }
-
-          return result;
+          return await invokeGasRpc(payload, timeoutMs);
         } catch (error) {
           lastError = normalizeGasRequestError(error, timeoutMs);
           if ((error && error.nonRetryable) || attempt >= retryCount) break;
-
-          // 唯讀請求才會自動重試，避免簽到／簽退等寫入操作被重複送出。
-          await wait(700 * Math.pow(2, attempt) + Math.floor(Math.random() * 250));
-        } finally {
-          clearTimeout(timeoutId);
+          await wait(500 * Math.pow(2, attempt) + Math.floor(Math.random() * 200));
         }
       }
 
@@ -887,7 +938,7 @@
     function assertBackendVersion(response) {
       const actualVersion = response && response.backendVersion ? response.backendVersion : '';
       if (actualVersion !== EXPECTED_BACKEND_VERSION) {
-        throw new Error(`GAS 後端版本不符。目前：${actualVersion || '舊版或未回傳版本'}；需要：${EXPECTED_BACKEND_VERSION}。請重新部署 Code.gs，並確認 index.html 使用的是該部署的 Web App URL。`);
+        throw new Error(`GAS 後端版本不符。目前：${actualVersion || '舊版或未回傳版本'}；需要：${EXPECTED_BACKEND_VERSION}。請確認 Code.gs 與 Index.html 已一起部署為同一個 GAS 新版本。`);
       }
     }
 
@@ -1487,9 +1538,6 @@
 
     document.addEventListener('DOMContentLoaded' , function() {
       initializeFoodWheelControls();
-      var savedEmail = localStorage.getItem('gym_email');
-      var savedName = localStorage.getItem('gym_username');
-      
       const today = new Date();
       const todayStr = today.getFullYear() + "-" + ("0" + (today.getMonth() + 1)).slice(-2) + "-" + ("0" + today.getDate()).slice(-2);
       
@@ -1538,13 +1586,7 @@
         }
       });
 
-      if (!savedEmail || !savedName) {
-        document.getElementById('step-bind').classList.remove('hidden');
-      } else {
-        document.getElementById('nav-bar').classList.remove('hidden');
-        // 取代原本的 showMainPage，改呼叫向後端確認狀態的函數
-        checkInitialStatus(savedName);
-      }
+      initializeAuthenticatedUser();
     });
 
     function changeTimelineDate(offset) {
@@ -1566,25 +1608,234 @@
       fetchAndRenderChart(newDateStr);
     }
 
-    function bindAccount() {
-      var email = document.getElementById('input-email').value.trim();
-      var name = document.getElementById('input-name').value.trim();
-      if (!email || !name) { 
-        showModal('<div class="text-amber-400 font-bold text-center">⚠️ 請填寫完整的 Email 與真實姓名！</div>', 'yellow'); 
-        return; 
+    function resetGoogleLoginPopupState() {
+      if (googleLoginPopupTimer) clearInterval(googleLoginPopupTimer);
+      googleLoginPopupTimer = null;
+      googleLoginPopup = null;
+      googleLoginPending = false;
+      googleLoginSwitchMode = false;
+    }
+
+    function closeGoogleLoginPopup() {
+      try {
+        if (googleLoginPopup && !googleLoginPopup.closed) googleLoginPopup.close();
+      } catch (error) {}
+      resetGoogleLoginPopupState();
+    }
+
+    function openGoogleLoginPopup(isSwitchAccount = false) {
+      if (googleLoginPending) return;
+      if (!GOOGLE_LOGIN_PAGE_URL) {
+        showLoginFailure('外部 Google 登入頁尚未設定。');
+        return;
       }
-      localStorage.setItem('gym_email', email);
-      localStorage.setItem('gym_username', name);
-      
-      document.getElementById('nav-bar').classList.remove('hidden');
-      document.getElementById('step-bind').classList.add('hidden');
-      checkInitialStatus(name); // 綁定後立即向後端確認狀態
+
+      const width = Math.min(460, Math.max(360, window.screen.availWidth - 32));
+      const height = Math.min(680, Math.max(560, window.screen.availHeight - 48));
+      const left = Math.max(0, Math.round((window.screen.availWidth - width) / 2));
+      const top = Math.max(0, Math.round((window.screen.availHeight - height) / 2));
+      const popup = window.open('about:blank', 'gymGoogleIdentityLogin', `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`);
+
+      if (!popup) {
+        const message = '瀏覽器阻擋了 Google 登入視窗，請允許此網站開啟彈出式視窗後再試一次。';
+        if (APP_AUTH_TOKEN) showModal(`<div class="text-amber-400 font-bold text-center">${escapeHtml(message)}</div>`, 'yellow');
+        else showLoginFailure(message);
+        return;
+      }
+
+      googleLoginPopup = popup;
+      googleLoginPending = true;
+      googleLoginSwitchMode = Boolean(isSwitchAccount);
+      try {
+        popup.document.write('<!doctype html><meta charset="utf-8"><title>準備 Google 登入</title><body style="background:#030712;color:#d1d5db;font-family:sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;text-align:center"><div>正在準備 Google 登入…</div></body>');
+        popup.document.close();
+      } catch (error) {}
+
+      if (!isSwitchAccount) {
+        document.getElementById('login-hint').textContent = '正在開啟 Google 帳戶選擇器…';
+        document.getElementById('login-error-panel').classList.add('hidden');
+      }
+
+      gasRequest({ action: '建立Google登入挑戰' }, { timeoutMs: 15000, retryCount: 0 })
+        .then(response => {
+          assertBackendVersion(response);
+          if (!googleLoginPopup || googleLoginPopup.closed) throw new Error('Google 登入視窗已關閉。');
+
+          const loginUrl = new URL(response.loginPageUrl || GOOGLE_LOGIN_PAGE_URL);
+          loginUrl.searchParams.set('clientId', response.clientId || '');
+          loginUrl.searchParams.set('challenge', response.challengeToken || '');
+          loginUrl.searchParams.set('nonce', response.nonce || '');
+          loginUrl.searchParams.set('receiverOrigin', window.location.origin);
+          loginUrl.searchParams.set('mode', isSwitchAccount ? 'switch' : 'login');
+          googleLoginPopup.location.replace(loginUrl.toString());
+
+          googleLoginPopupTimer = setInterval(() => {
+            if (!googleLoginPopup || googleLoginPopup.closed) {
+              const wasSwitching = googleLoginSwitchMode;
+              resetGoogleLoginPopupState();
+              if (!APP_AUTH_TOKEN) showLoginFailure('Google 登入視窗已關閉，尚未完成登入。');
+              else if (wasSwitching) showModal('<div class="text-gray-300 text-center">已取消切換 Google 帳戶。</div>', 'cyan');
+            }
+          }, 500);
+        })
+        .catch(error => {
+          closeGoogleLoginPopup();
+          const message = error && error.message ? error.message : String(error || '無法建立 Google 登入流程');
+          if (APP_AUTH_TOKEN) showModal(`<div class="text-rose-400 font-bold text-center mb-2">Google 登入失敗</div><div class="text-gray-300 text-xs text-center">${escapeHtml(message)}</div>`, 'red');
+          else showLoginFailure(message);
+        });
+    }
+
+    window.addEventListener('message', event => {
+      if (!GOOGLE_LOGIN_ORIGIN || event.origin !== GOOGLE_LOGIN_ORIGIN) return;
+      if (!googleLoginPopup || event.source !== googleLoginPopup) return;
+
+      const data = event.data || {};
+      if (data.type !== 'gym-google-login-success') return;
+      const idToken = String(data.credential || '');
+      const challengeToken = String(data.challengeToken || '');
+      if (!idToken || !challengeToken || googleLoginPending === false) return;
+
+      const wasSwitching = googleLoginSwitchMode;
+      googleLoginPending = false;
+      if (googleLoginPopupTimer) clearInterval(googleLoginPopupTimer);
+      googleLoginPopupTimer = null;
+
+      gasRequest({
+        action: '使用GoogleIDToken登入',
+        idToken: idToken,
+        challengeToken: challengeToken
+      }, { timeoutMs: 25000, retryCount: 0 })
+        .then(response => {
+          assertBackendVersion(response);
+          if (!response.authToken || !response.email) throw new Error('後端沒有回傳有效的登入憑證。');
+
+          const previousEmail = localStorage.getItem('gym_authenticated_email') || '';
+          persistAuthToken(response.authToken);
+          if (previousEmail && previousEmail !== response.email) {
+            ['gym_username', 'gym_status', 'gym_current_role', 'gym_status_synced_at'].forEach(key => {
+              try { localStorage.removeItem(key); } catch (error) {}
+            });
+          }
+          closeGoogleLoginPopup();
+          initializeAuthenticatedUser(true);
+        })
+        .catch(error => {
+          closeGoogleLoginPopup();
+          const message = error && error.message ? error.message : String(error || 'Google 登入驗證失敗');
+          if (APP_AUTH_TOKEN && wasSwitching) {
+            showModal(`<div class="text-rose-400 font-bold text-center mb-2">切換帳戶失敗</div><div class="text-gray-300 text-xs text-center">${escapeHtml(message)}</div>`, 'red');
+          } else {
+            showLoginFailure(message);
+          }
+        });
+    });
+
+    function restartGoogleLogin() {
+      openGoogleLoginPopup(false);
+    }
+
+    function logoutGoogleAccount() {
+      closeSidebar();
+      openGoogleLoginPopup(true);
+    }
+
+    function showLoginFailure(message) {
+      document.getElementById('step-bind').classList.remove('hidden');
+      document.getElementById('profile-bind-form').classList.add('hidden');
+      document.getElementById('login-error-panel').classList.remove('hidden');
+      document.getElementById('login-error-text').textContent = message || 'Google 登入憑證無效，請重新登入。';
+      document.getElementById('login-hint').textContent = 'Google 帳戶驗證失敗';
+    }
+
+    function initializeAuthenticatedUser(forceRefresh = false) {
+      document.getElementById('nav-bar').classList.add('hidden');
+      document.getElementById('step-main').classList.add('hidden');
+      document.getElementById('step-device').classList.add('hidden');
+      document.getElementById('step-bind').classList.remove('hidden');
+      document.getElementById('profile-bind-form').classList.add('hidden');
+      document.getElementById('login-error-panel').classList.add('hidden');
+      document.getElementById('login-hint').textContent = AUTHENTICATED_GOOGLE_EMAIL ? `正在驗證 ${AUTHENTICATED_GOOGLE_EMAIL}…` : '正在恢復已儲存的 Google 登入…';
+
+      if (!APP_AUTH_TOKEN) {
+        showLoginFailure(INITIAL_LOGIN_ERROR || '此瀏覽器尚未登入本系統。請開啟 Google 帳戶選擇器；成功一次後，之後重新整理或再次掃描 QR Code 都會自動恢復。');
+        return;
+      }
+
+      gasRequest({ action: '取得登入狀態', forceRefresh: Boolean(forceRefresh) }, { timeoutMs: 15000, retryCount: 0 })
+        .then(response => {
+          assertBackendVersion(response);
+          if (response.renewedAuthToken) persistAuthToken(response.renewedAuthToken);
+          const email = response.email || '';
+          const name = response.name || '';
+          if (!email) throw new Error('後端沒有取得登入中的 Google Email。');
+
+          const previousAuthenticatedEmail = localStorage.getItem('gym_authenticated_email') || '';
+          const cachedLegacyName = localStorage.getItem('gym_username') || AUTHENTICATED_GOOGLE_NAME || '';
+          if (previousAuthenticatedEmail && previousAuthenticatedEmail !== email) {
+            localStorage.removeItem('gym_status');
+            localStorage.removeItem('gym_current_role');
+            localStorage.removeItem('gym_username');
+          }
+          localStorage.setItem('gym_authenticated_email', email);
+          localStorage.setItem('gym_email', email);
+          document.getElementById('input-email').value = email;
+
+          if (!response.isBound || !name) {
+            localStorage.removeItem('gym_username');
+            document.getElementById('input-name').value = previousAuthenticatedEmail === email ? cachedLegacyName : '';
+            document.getElementById('login-hint').textContent = `已登入 ${email}。首次使用只需設定一次真實姓名。`;
+            document.getElementById('profile-bind-form').classList.remove('hidden');
+            document.getElementById('input-name').focus();
+            return;
+          }
+
+          localStorage.setItem('gym_username', name);
+          document.getElementById('step-bind').classList.add('hidden');
+          document.getElementById('nav-bar').classList.remove('hidden');
+          checkInitialStatus(name);
+        })
+        .catch(error => {
+          const code = error && error.code ? error.code : '';
+          if (code === 'AUTH_TOKEN_EXPIRED' || code === 'AUTH_TOKEN_INVALID') persistAuthToken('');
+          showLoginFailure(error && error.message ? error.message : String(error || '登入驗證失敗'));
+        });
+    }
+
+    function bindAccount() {
+      var name = document.getElementById('input-name').value.trim();
+      if (!name) {
+        showModal('<div class="text-amber-400 font-bold text-center">⚠️ 請輸入真實姓名！</div>', 'yellow');
+        return;
+      }
+
+      var button = document.getElementById('bind-account-btn');
+      button.disabled = true;
+      button.innerText = '綁定中…';
+
+      gasRequest({ action: '綁定Google帳戶', name: name }, { timeoutMs: 20000, retryCount: 0 })
+        .then(response => {
+          assertBackendVersion(response);
+          localStorage.setItem('gym_email', response.email || '');
+          localStorage.setItem('gym_username', response.name || name);
+          document.getElementById('step-bind').classList.add('hidden');
+          document.getElementById('nav-bar').classList.remove('hidden');
+          checkInitialStatus(response.name || name);
+        })
+        .catch(error => {
+          showModal(`<div class="text-rose-400 font-bold text-center mb-2">帳戶綁定失敗</div><div class="text-gray-300 text-xs text-center">${escapeHtml(error.message || '請稍後重試')}</div>`, 'red');
+        })
+        .finally(() => {
+          button.disabled = false;
+          button.innerText = '完成姓名綁定';
+        });
     }
 
     // 先立即顯示本機最後狀態，再於背景同步 GAS；不再讓首頁按鈕卡在「讀取中」。
     function checkInitialStatus(name) {
       document.getElementById('step-main').classList.remove('hidden');
       document.getElementById('display-name').innerText = name;
+      document.getElementById('display-google-email').innerText = localStorage.getItem('gym_email') || '';
       initialStatusUnavailable = false;
       updateBubbleUI();
       setHomeSyncStatus('syncing', '背景同步最新簽到狀態…');
@@ -1866,22 +2117,22 @@
       const slowTimer = setTimeout(() => {
         if (currentFetchToken !== fetchToken || cached) return;
         setTimelineLoading(true, 'GAS 可能正在冷啟動，仍在等待資料…');
-        setTimelineStatus('後端處理時間較長，請稍後或重新整理。', 'warning');
+        setTimelineStatus('後端處理時間較長，但尚未判定為無資料。', 'warning');
       }, 9000);
 
       const reportPromise = getSharedRequest('report:' + dateStr, () => gasRequest(
         { action: '取得報表圖表', date: dateStr },
-        { timeoutMs: 30000, retryCount: 0 }
+        { timeoutMs: 60000, retryCount: 0 }
       ));
 
       const activeDatesPromise = getSharedRequest('active-dates', () => gasRequest(
         { action: '取得圖表有效日期' },
-        { timeoutMs: 25000, retryCount: 0 }
+        { timeoutMs: 45000, retryCount: 0 }
       ));
 
       const calendarPromise = getSharedRequest('calendar:' + dateStr, () => gasRequest(
         { action: '取得日曆預約', date: dateStr },
-        { timeoutMs: 25000, retryCount: 0 }
+        { timeoutMs: 45000, retryCount: 0 }
       ));
 
       reportPromise
@@ -1895,8 +2146,11 @@
         saveTimelineCache(dateStr, payload);
         setTimelineLoading(false);
         setTimelineError(false);
+        const timingParts = [];
+        if (response.serverTimingMs !== undefined) timingParts.push(`後端 ${response.serverTimingMs} ms`);
+        if (response.clientRoundTripMs !== undefined) timingParts.push(`總往返 ${response.clientRoundTripMs} ms`);
         setTimelineStatus(
-          response.serverTimingMs !== undefined ? `資料已更新（後端 ${response.serverTimingMs} ms）` : '資料已更新',
+          timingParts.length ? `資料已更新（${timingParts.join('、')}）` : '資料已更新',
           'ok'
         );
       })
@@ -1915,8 +2169,8 @@
           console.warn('圖表背景更新失敗，保留快取內容：', err);
         } else {
           clearTimelineChartView();
-          setTimelineStatus('伺服器忙碌中', '');
-          setTimelineError(true, message + '。請過段時間再次嘗試。');
+          setTimelineStatus('讀取失敗；這不代表當天沒有資料。', 'error');
+          setTimelineError(true, message + '。這是連線／執行逾時，不會被當成「當天無資料」。');
         }
       });
 
